@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Shop, Portfolio & Products</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; color: #555; font-size: 0.9rem; }
+        input[type="text"], input[type="number"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        
+        .file-input { border: 2px dashed #ddd; padding: 10px; border-radius: 5px; background: #fafafa; width: 100%; box-sizing: border-box; }
+        
+        .section-title { 
+            margin-top: 40px; border-bottom: 2px solid #007bff; 
+            padding-bottom: 10px; margin-bottom: 20px; color: #007bff; font-size: 1.4em; display: flex; align-items: center; gap: 10px;
+        }
+
+        button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #218838; }
+        button.delete { background: #dc3545; margin-top: 10px; }
+        button.delete:hover { background: #c82333; }
+
+        /* Portfolio Grid */
+        .portfolio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 15px; }
+        .portfolio-item { position: relative; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .portfolio-item img { width: 100%; height: 100px; object-fit: cover; }
+        .icon-btn { 
+            position: absolute; top: 5px; right: 5px; background: rgba(255,0,0,0.8); color: white; 
+            border: none; width: 25px; height: 25px; border-radius: 50%; cursor: pointer; font-size: 12px;
+        }
+
+        #response { margin-top: 20px; background: #222; color: #0f0; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; display: none; }
+        .api-bar { display: flex; gap: 10px; margin-bottom: 20px; background: #e9ecef; padding: 10px; border-radius: 5px; }
+        .api-bar input { flex: 1; border: 1px solid #ccc; }
+
+        .row { display: flex; gap: 15px; }
+        .col { flex: 1; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🛠️ Client Dashboard Test</h2>
+    
+    <div class="api-bar">
+        <input type="text" id="baseUrl" value="http://localhost:3000/client" placeholder="Base URL">
+        <button style="width: auto; padding: 8px 20px; background: #007bff;" onclick="fetchShopData()">🔄 Load Shop Data</button>
+    </div>
+
+    <!-- ================= SHOP SECTION ================= -->
+    <h3 class="section-title">🏪 Shop Profile</h3>
+    
+    <div class="row">
+        <div class="col form-group">
+            <label>Shop Name</label>
+            <input type="text" id="shopName">
+        </div>
+        <div class="col form-group">
+            <label>City</label>
+            <input type="text" id="city">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea id="shopDescription" rows="2"></textarea>
+    </div>
+    <div class="row">
+        <div class="col form-group">
+            <label>Profile Logo</label>
+            <input type="file" id="profileImage" class="file-input" accept="image/*">
+        </div>
+        <div class="col form-group">
+            <label>Cover Image</label>
+            <input type="file" id="coverImage" class="file-input" accept="image/*">
+        </div>
+    </div>
+    
+    <h4 style="margin-bottom: 5px; color: #666;">Portfolio Gallery</h4>
+    <div id="currentPortfolio" class="portfolio-grid"></div>
+    <div class="form-group" style="margin-top: 10px;">
+        <label>Upload New to Portfolio (+)</label>
+        <input type="file" id="portfolioImages" class="file-input" multiple accept="image/*">
+    </div>
+
+    <button onclick="updateShop()">💾 Save Shop Profile</button>
+
+
+    <!-- ================= PRODUCT SECTION ================= -->
+    <h3 class="section-title">📦 Manage Product</h3>
+    <p style="font-size: 0.85em; color: #666; margin-bottom: 15px;">
+        Paste a <strong>Product ID</strong> below to Update or Delete it. 
+        (Use the "Add Product" test page to create one first and get the ID).
+    </p>
+
+    <div class="form-group" style="background: #fff3cd; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba;">
+        <label>Target Product ID (Required for Update/Delete)</label>
+        <input type="text" id="productId" placeholder="Paste ID here: e.g. 654a..." style="font-family: monospace; font-weight: bold;">
+    </div>
+
+    <div class="row">
+        <div class="col form-group">
+            <label>New Name</label>
+            <input type="text" id="prodName" placeholder="Chocolate Cake">
+        </div>
+        <div class="col form-group">
+            <label>New Price (₹)</label>
+            <input type="number" id="prodPrice" placeholder="500">
+        </div>
+        <div class="col form-group">
+            <label>New Stock</label>
+            <input type="number" id="prodStock" placeholder="10">
+        </div>
+    </div>
+    
+    <div class="form-group">
+        <label>Replace Images (Optional)</label>
+        <input type="file" id="prodImages" class="file-input" multiple accept="image/*">
+        <small style="color: #dc3545;">*Warning: Uploading files here will REPLACE all existing images for this product.</small>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <button onclick="updateProduct()">✏️ Update Product</button>
+        </div>
+        <div class="col">
+            <button class="delete" onclick="deleteProduct()">🗑️ Delete Product</button>
+        </div>
+    </div>
+
+    <!-- CONSOLE -->
+    <div id="response"></div>
+</div>
+
+<script>
+    const getBaseUrl = () => document.getElementById('baseUrl').value;
+    const responseDiv = document.getElementById('response');
+
+    function log(msg, isError = false) {
+        responseDiv.style.display = 'block';
+        responseDiv.innerText = (isError ? "❌ " : "✅ ") + msg;
+        responseDiv.style.color = isError ? "#ff4444" : "#0f0";
+    }
+
+    // --- 1. LOAD SHOP DATA ---
+    async function fetchShopData() {
+        try {
+            const res = await fetch(`${getBaseUrl()}/getshop`, { credentials: "include" });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            if(data) {
+                document.getElementById('shopName').value = data.shopName || "";
+                document.getElementById('city').value = data.city || "";
+                document.getElementById('shopDescription').value = data.shopDescription || "";
+                
+                const grid = document.getElementById('currentPortfolio');
+                grid.innerHTML = "";
+                (data.shop.portfolio || []).forEach(item => {
+                    grid.innerHTML += `
+                        <div class="portfolio-item">
+                            <img src="${item.imageUrl}">
+                            <button class="icon-btn" onclick="deletePortfolioItem('${item._id}')">x</button>
+                        </div>`;
+                });
+                log("Shop Data Loaded!");
+            }
+        } catch (e) { log(e.message, true); }
+    }
+
+    // --- 2. UPDATE SHOP ---
+    async function updateShop() {
+        const formData = new FormData();
+        
+        // Text
+        const fields = ['shopName', 'city', 'shopDescription']; // IDs match JSON keys
+        fields.forEach(id => {
+            const val = document.getElementById(id).value;
+            if(val) formData.append(id, val);
+        });
+
+        // Files
+        const prof = document.getElementById('profileImage').files[0];
+        if(prof) formData.append("profileImage", prof);
+        
+        const cover = document.getElementById('coverImage').files[0];
+        if(cover) formData.append("coverImage", cover);
+
+        const port = document.getElementById('portfolioImages').files;
+        for(let i=0; i<port.length; i++) formData.append("portfolioImages", port[i]);
+
+        try {
+            const res = await fetch(`${getBaseUrl()}/updateshop`, {
+                method: "PUT", body: formData, credentials: "include"
+            });
+            const data = await res.json();
+            if(res.ok) { log("Shop Updated!\n" + JSON.stringify(data, null, 2)); fetchShopData(); }
+            else throw new Error(data.error || JSON.stringify(data));
+        } catch (e) { log(e.message, true); }
+    }
+
+    // --- 3. DELETE PORTFOLIO ITEM ---
+    async function deletePortfolioItem(id) {
+        if(!confirm("Delete this image?")) return;
+        try {
+            const res = await fetch(`${getBaseUrl()}/portfolio/${id}`, {
+                method: "DELETE", credentials: "include"
+            });
+            if(res.ok) { log("Image Deleted"); fetchShopData(); }
+            else throw new Error("Failed to delete");
+        } catch(e) { log(e.message, true); }
+    }
+
+    // --- 4. UPDATE PRODUCT (PUT) ---
+    async function updateProduct() {
+        const id = document.getElementById('productId').value;
+        if(!id) return alert("Please enter a Product ID first!");
+
+        const formData = new FormData();
+        const name = document.getElementById('prodName').value;
+        const price = document.getElementById('prodPrice').value;
+        const stock = document.getElementById('prodStock').value;
+        
+        if(name) formData.append("productName", name);
+        if(price) formData.append("price", price);
+        if(stock) formData.append("stock", stock);
+
+        const files = document.getElementById('prodImages').files;
+        for(let i=0; i<files.length; i++) formData.append("productImages", files[i]);
+
+        try {
+            const res = await fetch(`${getBaseUrl()}/product/${id}`, {
+                method: "PUT", body: formData, credentials: "include"
+            });
+            const data = await res.json();
+            if(res.ok) log("Product Updated!\n" + JSON.stringify(data, null, 2));
+            else throw new Error(data.error || JSON.stringify(data));
+        } catch(e) { log(e.message, true); }
+    }
+
+    // --- 5. DELETE PRODUCT (DELETE) ---
+    async function deleteProduct() {
+        const id = document.getElementById('productId').value;
+        if(!id) return alert("Please enter a Product ID first!");
+        if(!confirm("Permanently delete this product?")) return;
+
+        try {
+            const res = await fetch(`${getBaseUrl()}/product/${id}`, {
+                method: "DELETE", credentials: "include"
+            });
+            const data = await res.json();
+            if(res.ok) log("Product Deleted!\n" + JSON.stringify(data, null, 2));
+            else throw new Error(data.error || JSON.stringify(data));
+        } catch(e) { log(e.message, true); }
+    }
+
+    // Load initial data
+    fetchShopData();
+</script>
+
+</body>
+</html>

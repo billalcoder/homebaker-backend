@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Product Test</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; padding: 40px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
+        input[type="text"], input[type="number"], textarea, select {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px;
+        }
+        input[type="file"] { border: 2px dashed #ccc; padding: 20px; width: 100%; text-align: center; box-sizing: border-box; border-radius: 6px; }
+        
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background 0.3s; margin-top: 10px; }
+        button:hover { background-color: #0056b3; }
+
+        .response-area { margin-top: 20px; background: #2d2d2d; color: #0f0; padding: 15px; border-radius: 6px; font-family: monospace; white-space: pre-wrap; display: none; }
+        .error { color: #ff4444; }
+        
+        .api-config { background: #e9ecef; padding: 10px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #ced4da; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📦 Add New Product</h2>
+
+    <div class="api-config">
+        <label style="font-size: 12px;">API Endpoint:</label>
+        <input type="text" id="apiUrl" value="http://localhost:4000/client/product">
+    </div>
+
+    <!-- PRODUCT DETAILS FORM -->
+    <div class="form-group">
+        <label>Product Name *</label>
+        <input type="text" id="productName" value="Chocolate Truffle Cake<script>alert("hacked")</script>">
+    </div>
+
+    <div class="form-group">
+        <label>Description</label>
+        <textarea id="productDescription" rows="3">Chocolate Truffle Cake<script>alert("hacked")</script></textarea>
+    </div>
+
+    <div style="display: flex; gap: 15px;">
+        <div class="form-group" style="flex: 1;">
+            <label>Price (₹) *</label>
+            <input type="number" id="price" value="550">
+        </div>
+        <div class="form-group" style="flex: 1;">
+            <label>Stock</label>
+            <input type="number" id="stock" value="20">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Category</label>
+        <input type="text" id="category" value="Cakes">
+    </div>
+
+    <div class="form-group">
+        <label>Product Images (Max 5) *</label>
+        <input type="file" id="productImages" multiple accept="image/*">
+    </div>
+
+    <button onclick="submitProduct()">Upload Product</button>
+
+    <div id="response" class="response-area"></div>
+</div>
+
+<script>
+    async function submitProduct() {
+        const responseArea = document.getElementById('response');
+        const url = document.getElementById('apiUrl').value;
+        
+        // Reset UI
+        responseArea.style.display = 'block';
+        responseArea.innerText = "⏳ Uploading to S3 and saving to DB...";
+        responseArea.classList.remove('error');
+
+        // 1. Gather Data
+        const productName = document.getElementById('productName').value;
+        const productDescription = document.getElementById('productDescription').value;
+        const price = document.getElementById('price').value;
+        const stock = document.getElementById('stock').value;
+        const category = document.getElementById('category').value;
+        const fileInput = document.getElementById('productImages');
+
+        // 2. Validation
+        if(fileInput.files.length === 0) {
+            responseArea.innerText = "❌ Error: Please select at least one image.";
+            responseArea.classList.add('error');
+            return;
+        }
+
+        // 3. Build FormData
+        const formData = new FormData();
+        formData.append("productName", productName);
+        formData.append("productDescription", productDescription);
+        formData.append("price", price);
+        formData.append("stock", stock);
+        formData.append("category", category);
+
+        // Append multiple files with the SAME key 'productImages'
+        // This MUST match upload.array("productImages") in your route!
+        for (let i = 0; i < fileInput.files.length; i++) {
+            formData.append("productImages", fileInput.files[i]);
+        }
+
+        try {
+            // 4. Send Request
+            const response = await fetch(url, {
+                method: "POST",
+                body: formData,
+                credentials: "include" // CRITICAL: Sends the HttpOnly Session Cookie
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                responseArea.innerText = "✅ SUCCESS!\n" + JSON.stringify(result, null, 2);
+            } else {
+                throw new Error(result.error || result.details || "Unknown Error");
+            }
+
+        } catch (error) {
+            console.error(error);
+            responseArea.innerText = "❌ FAILED:\n" + error.message;
+            responseArea.classList.add('error');
+            
+            // Helpful hints for common errors
+            if(error.message.includes("Shop profile not found")) {
+                responseArea.innerText += "\n\n💡 HINT: You are logged in, but this user does not have a 'Shop' document yet. Check your ShopModel logic.";
+            }
+            if(error.message.includes("Failed to fetch")) {
+                responseArea.innerText += "\n\n💡 HINT: Is the server running? Is CORS enabled?";
+            }
+        }
+    }
+</script>
+
+</body>
+</html>

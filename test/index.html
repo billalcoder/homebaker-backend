@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Bulk Upload</title>
+    <style>
+        body { font-family: sans-serif; padding: 50px; background-color: #f9f9f9; }
+        .box { border: 2px dashed #ccc; padding: 20px; border-radius: 8px; max-width: 500px; background: white; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; margin-top: 10px; }
+        button:hover { background: #0056b3; }
+        input[type="text"] { width: 95%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .error-guide { margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 5px; color: #856404; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h3>Upload Portfolio Images (Max 7)</h3>
+        
+        <!-- URL Input: Allows you to change the endpoint easily -->
+        <label for="apiUrl"><strong>Backend API URL:</strong></label>
+        <input type="text" id="apiUrl" value="http://localhost:4000/client/portfolio">
+
+        <br><br>
+
+        <!-- 1. File Input -->
+        <label><strong>Select Images:</strong></label><br>
+        <input type="file" id="imageInput" multiple accept="image/*">
+        
+        <br>
+        
+        <!-- 2. Trigger JS -->
+        <button onclick="uploadImages()">Upload Now</button>
+    </div>
+
+    <!-- Error Output Area -->
+    <pre id="output" style="background:#333; color: #0f0; padding:15px; margin-top:20px; border-radius: 5px; white-space: pre-wrap; display: none;"></pre>
+
+    <!-- Troubleshooting Guide (Visible when error occurs) -->
+    <div id="troubleshooting" class="error-guide" style="display: none;">
+        <strong>🛑 "Failed to fetch" Fixes:</strong>
+        <ol style="padding-left: 20px; margin-bottom: 0;">
+            <li><strong>Is your Backend Running?</strong> Make sure your Node.js server is started (<code>npm start</code>).</li>
+            <li><strong>CORS Error:</strong> Your backend is likely blocking this HTML file. You must install <code>cors</code> on your backend:
+                <br><code>npm install cors</code>
+                <br>Then add this to your <code>app.js</code>:
+                <br><code>import cors from 'cors'; app.use(cors({ origin: '*' }));</code>
+            </li>
+            <li><strong>Wrong URL:</strong> Check if your route is <code>/api/portfolio</code> or just <code>/portfolio</code>.</li>
+        </ol>
+    </div>
+
+    <script>
+        async function uploadImages() {
+            const input = document.getElementById('imageInput');
+            const urlInput = document.getElementById('apiUrl');
+            const output = document.getElementById('output');
+            const troubleshooting = document.getElementById('troubleshooting');
+            const files = input.files;
+
+            // Reset UI
+            output.style.display = 'block';
+            output.innerText = "";
+            troubleshooting.style.display = 'none';
+
+            // Basic Validation
+            if (files.length === 0) {
+                alert("Please select at least one image.");
+                return;
+            }
+
+            // 1. Prepare FormData
+            const formData = new FormData();
+            
+            // Loop through selected files and append to the SAME key
+            for (let i = 0; i < files.length; i++) {
+                formData.append("portfolioImages", files[i]);
+            }
+
+            output.innerText = "Uploading to " + urlInput.value + "...";
+
+            try {
+                // 2. Send Request
+                const response = await fetch(urlInput.value, {
+                    method: "POST",
+                    body: formData,
+                    credentials: "include" // Only uncomment if CORS is configured to allow credentials
+                });
+
+                // Check if response is JSON
+                const contentType = response.headers.get("content-type");
+                let result;
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    result = await response.json();
+                } else {
+                    result = await response.text();
+                }
+                
+                // 3. Show Result
+                output.innerText = JSON.stringify(result, null, 2);
+                console.log("Server Response:", result);
+
+            } catch (error) {
+                console.error("Error:", error);
+                output.innerText = "❌ Error: " + error.message;
+                // Show the helper guide if it's a fetch error
+                if (error.message.includes("Failed to fetch")) {
+                    troubleshooting.style.display = 'block';
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>

@@ -12,7 +12,7 @@ import rateLimit from "express-rate-limit"
 const app = express()
 
 app.use(express.json())
-app.use(cors({ origin: ["http://localhost:5502" , "http://localhost:5173" , "https://homebaker.netlify.app"], credentials: true }))
+app.use(cors({ origin: ["http://localhost:5502", "http://localhost:5173", "https://homebaker.netlify.app"], credentials: true }))
 app.use(cookieParser(process.env.SECRET))
 app.use(sanitizeRequest)
 app.use(helmet({
@@ -28,6 +28,9 @@ const limiter = rateLimit({
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     message: 'Too many requests from this IP, please try again after 15 minutes',
+});
+app.get("/", (req, res) => {
+    res.status(200).send("Backend is alive!");
 });
 
 app.use(limiter);

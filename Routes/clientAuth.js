@@ -10,6 +10,7 @@ import {
     getClientdata,
     getProduct,
     getshopdata,
+    updatePassword,
     updateProductController,
     updateprofile,
     updateShopdata
@@ -37,6 +38,7 @@ route.put("/updateshop", userSession,
 );
 route.put("/product/:id", userSession, upload.array("productImages", 5), updateProductController);
 route.put("/updateprofile" , userSession , updateprofile)
+route.put("/updatepassword" , userSession , updatePassword)
 
 // POST Routes
 route.post("/register", clientRegisterController);

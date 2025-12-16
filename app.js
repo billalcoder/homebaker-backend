@@ -4,15 +4,19 @@ import cors from "cors"
 import cookieParser from "cookie-parser"
 import auth from "./Routes/auth.js"
 import client from "./Routes/clientAuth.js"
+import order from "./Routes/order.js"
 import { sanitizeRequest } from "./middlewares/sanitizationMiddlewere.js"
 import hpp from "hpp"
 import helmet from "helmet"
 import rateLimit from "express-rate-limit"
-
+import payment from "./Routes/payment.js"
+import shop from "./Routes/shop.js"
+import review from "./Routes/review.js"
+import searchRoutes from "./Routes/search.js"
 const app = express()
 
 app.use(express.json())
-app.use(cors({ origin: ["http://localhost:5502", "http://localhost:5173", "https://homebaker.netlify.app"], credentials: true }))
+app.use(cors({ origin: ["http://localhost:5502", "http://localhost:5173","http://localhost:5174","https://homebaker.netlify.app"], credentials: true }))
 app.use(cookieParser(process.env.SECRET))
 app.use(sanitizeRequest)
 app.use(helmet({
@@ -38,6 +42,16 @@ app.use(limiter);
 app.use("/auth", auth)
 
 app.use("/client", client)
+
+app.use("/order" , order)
+
+app.use("/payment" , payment)
+
+app.use("/shop" , shop)
+
+app.use("/review" , review)
+
+app.use("/search", searchRoutes);
 
 app.use((err, req, res, next) => {
     console.error("❌ Error:", err);

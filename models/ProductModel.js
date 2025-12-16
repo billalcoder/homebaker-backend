@@ -1,6 +1,4 @@
 import mongoose from "mongoose";
-import { type } from "os";
-import { ref } from "process";
 
 const productSchema = new mongoose.Schema(
   {
@@ -36,7 +34,6 @@ const productSchema = new mongoose.Schema(
       min: 1
     },
 
-    // Array of CloudFront Image URLs
     images: {
       type: [String],
       default: []
@@ -53,6 +50,7 @@ const productSchema = new mongoose.Schema(
       enum: ["kg", "quantity"],
       required: true
     },
+
     unitValue: {
       type: Number,
       required: true,
@@ -62,20 +60,37 @@ const productSchema = new mongoose.Schema(
     category: {
       type: String,
       trim: true,
-      enum: ["Cake", "Pastry", "Cookies", "Bread", "Brownie", "Donuts", "Chocolates", "Snacks", "Others"],
+      enum: [
+        "Cake", "Pastry", "Cookies", "Bread", "Brownie",
+        "Donuts", "Chocolates", "Snacks", "Others"
+      ],
       default: "Others"
     },
 
-    // Status field is useful to hide products without deleting them
     isActive: {
       type: Boolean,
       default: true
+    },
+
+    /* ⭐⭐⭐ REVIEW FIELDS (NEW) ⭐⭐⭐ */
+
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+
+    reviewCount: {
+      type: Number,
+      default: 0,
+      min: 0
     }
   },
-  { timestamps: true } // Adds createdAt and updatedAt automatically
+  { timestamps: true }
 );
 
-// Optional: Index for faster search by shop or category
+// Indexes
 productSchema.index({ shopId: 1 });
 productSchema.index({ category: 1 });
 

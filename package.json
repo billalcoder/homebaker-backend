@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node --env-file=.env --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --watchAll",
-    "dev": "node --watch app.js"
+    "dev": "node  app.js"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +23,7 @@
     "hpp": "^0.2.3",
     "mongoose": "^8.20.1",
     "multer": "^2.0.2",
+    "razorpay": "^2.9.6",
     "xss": "^1.0.15",
     "zod": "^4.1.12"
   },

@@ -2,10 +2,13 @@ import { sessionModel } from "../models/SessionModel.js";
 
 export async function userSession(req, res, next) {
     try {
-        const session = req.signedCookies.sid
-        console.log("this is a session "+session);
+        const session = req.cookies.sid
+        console.log(session);
         if (!session) return res.status(404).json({ error: "session not found" })
-        const user = await sessionModel.findOne({ _id: session }).select("-password -_id").populate("userId")
+            const user = await sessionModel.findOne({ _id: session }).select("-password -_id").populate({path : "userId" , select : "-password"})
+        //  if (!user.isVarified) {
+        //     return res.status(400).json({ error: "Please varify your email first" });
+        // }
         if (!user) {
             return res.status(400).json({ error: "Invalid session" });
         }

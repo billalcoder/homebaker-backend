@@ -14,7 +14,7 @@ const shopSchema = new mongoose.Schema(
       required: true
     },
 
-    shopName: { type: String},
+    shopName: { type: String },
 
     // MVP Profile Setup: Not required on Register, but updated later
     shopDescription: { type: String, default: "" },
@@ -28,7 +28,7 @@ const shopSchema = new mongoose.Schema(
     coverImage: { type: String, default: "" },
 
     // Location Details (Split for better filtering later)
-    address: { type: String},
+    address: { type: String },
     city: { type: String, default: "" },
     pincode: { type: String, default: "" },
 
@@ -55,9 +55,12 @@ const shopSchema = new mongoose.Schema(
       type: Number,
       default: 0        // how many reviews this shop has
     },
+
+    totalOrder: { type: Number, default: 1 },
+
     isActive: { type: Boolean, default: true } // Admin can ban/suspend
   },
   { timestamps: true }
 );
-
+shopSchema.index({ location: "2dsphere" });
 export const ShopModel = mongoose.model("Shop", shopSchema);

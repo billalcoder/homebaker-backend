@@ -3,12 +3,16 @@ import { ShopModel } from "../models/ShopModel.js";
 import { loginService } from "../services/loginService.js";
 import { logoutService } from "../services/logoutService.js";
 import { registrationService } from "../services/registrationService.js";
-import { clientLoginValidation, clientUpdateValidation, clientValidation } from "../validations/clientValidation.js";
+import { clientLoginValidation, clientUpdatePasswordValidation, clientUpdateValidation, clientValidation } from "../validations/clientValidation.js";
 import { deleteFromS3, uploadToS3 } from "../utils/s3.js"; // Your existing utility
 import { productValidation } from "../validations/productValidation.js";
 import { upload } from "../middlewares/upload.js";
 import { ProductModel } from "../models/ProductModel.js";
 import { shopValidation } from "../validations/shopValidation.js";
+import {
+  updateProfileService,
+  updatePasswordService
+} from "../services/ProfileUpdate.js";
 // import { registrationService, loginService, logoutService } from "../services/"; // Adjust path
 
 // Helper to handle Zod errors clearly
@@ -31,33 +35,44 @@ export async function getClientdata(req, res, next) {
     }
 }
 
-export async function updateprofile(req, res, next) {
+export async function updateprofile(req, res) {
     try {
-        const ClientData = req.user
-        console.log(req.body);
-        const newData = clientUpdateValidation.safeParse(req.body.profile)
-        console.log(newData);
-        if (newData.error) {
-            console.log(newData.error);
-            return res.status(400).json({ error: newData.error })
+        const parsed = clientUpdateValidation.safeParse(req.body.profile);
+        if (!parsed.success) {
+            return res.status(400).json({ error: parsed.error });
         }
 
-        const cleanData = newData.data
-        console.log(cleanData);
+        await updateProfileService({
+            model: ClientModel,
+            authUser: req.user,
+            data: parsed.data
+        });
 
-        if (!ClientData) {
-            return res.status(401).json({ error: "Unauthorize Access" })
-        }
+        res.json({ success: true, message: "Client profile updated" });
 
-        const updateed = await ClientModel.updateOne({ name: ClientData.name }, { $set: cleanData })
-
-        console.log(updateed);
-        res.status(200).json({ message: "Update user data successfully" })
-    } catch (error) {
-        console.log(error);
-        return res.status(500).json(error)
+    } catch (err) {
+        res.status(err.status || 500).json({ error: err.message });
     }
+}
 
+export async function updatePassword(req, res) {
+    try {
+        const parsed = clientUpdatePasswordValidation.safeParse(req.body.profileData);
+        if (!parsed.success) {
+            return res.status(400).json({ error: parsed.error });
+        }
+
+        await updatePasswordService({
+            model: ClientModel,
+            authUser: req.user,
+            data: parsed.data
+        });
+
+        res.json({ success: true, message: "Client password updated" });
+
+    } catch (err) {
+        res.status(err.status || 500).json({ error: err.message });
+    }
 }
 
 export async function getshopdata(req, res, next) {
@@ -85,6 +100,7 @@ export async function getshopdata(req, res, next) {
 export async function updateShopdata(req, res, next) {
     try {
         const clientData = req.user;
+        console.log(clientData);
         const files = req.files || {};
 
         const shop = await ShopModel.findOne({ clientId: clientData._id });
@@ -217,7 +233,7 @@ export async function clientLoginController(req, res, next) {
         }
 
         // 2. Call Service
-        const result = await loginService(data.data);
+        const result = await loginService(data.data , ClientModel , "Client");
 
         if (result.error) {
             // Use the status code provided by the service, default to 400
@@ -228,9 +244,9 @@ export async function clientLoginController(req, res, next) {
         // We assume 'sessionId' is returned on success
         res.cookie("sid", result.sessionId, {
             httpOnly: true,  // Client JS cannot access this
-            secure: process.env.NODE_ENV === "production", // HTTPS only in prod
+            secure: true, // HTTPS only in prod
             sameSite: "none", // Mitigates CSRF,
-            signed: true,
+            // signed: true,
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 Days
         });
 
@@ -243,7 +259,7 @@ export async function clientLoginController(req, res, next) {
 export async function clientLogoutController(req, res, next) {
     try {
         // Get session ID from cookies
-        const sessionId = req.signedCookies.sid;
+        const sessionId = req.cookies.sid;
         console.log(sessionId);
         if (!sessionId) {
             return res.status(404).json({ message: "No session Found" })

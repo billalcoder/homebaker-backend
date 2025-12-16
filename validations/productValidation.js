@@ -66,3 +66,12 @@ export const productValidation = z.object({
 
   isActive: z.boolean().default(true),
 });
+
+
+export const productIdValidation = z.object({
+  productId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, "Invalid client ID"),
+
+  quantity: z.number().min(1).default(1)
+});

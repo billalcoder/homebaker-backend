@@ -4,11 +4,11 @@ import { sessionModel } from "../models/SessionModel.js";
 import { ClientModel } from "../models/ClientModel.js";
 import { ShopModel } from "../models/ShopModel.js";
 
-export async function loginService(loginData) {
+export async function loginService(loginData, model, userType) {
     const { email, password } = loginData;
 
     // 1. Check User Existence
-    const userData = await findEmail(email, ClientModel);
+    const userData = await findEmail(email, model);
 
     if (!userData) {
         // FIX: Ensure key is 'error', NOT 'err'
@@ -36,11 +36,12 @@ export async function loginService(loginData) {
         // 4. Create New Session
         const userSession = await sessionModel.create({
             userId: userData._id,
+            userType,
             // FIX: Ensure expireAt is added to prevent Schema Validation Error
             expireAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         });
         const isShop = await ShopModel.findOne({ clientId: userData._id })
-        if(!isShop){
+        if (!isShop) {
             await ShopModel.create({
                 clientId: userData._id,
             })

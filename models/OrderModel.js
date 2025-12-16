@@ -21,7 +21,7 @@ const orderSchema = new mongoose.Schema(
           ref: "Product",
           required: true
         },
-        quantity: { type: Number, required: true },
+        quantity: { type: Number, default : 1 },
         price: { type: Number, required: true }
       }
     ], 
@@ -38,7 +38,7 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: [
         "pending",
-        "accepted",
+        "accpeted",
         "preparing",
         "on-the-way",
         "delivered",
@@ -46,12 +46,6 @@ const orderSchema = new mongoose.Schema(
       ],
       default: "pending"
     },
-
-    deliveryPartnerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Driver",
-      default: null
-    }
   },
   { timestamps: true }
 );

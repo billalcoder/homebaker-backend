@@ -130,9 +130,13 @@ export async function updateUserProfile(req, res) {
 
 export async function updateUserPassword(req, res) {
     try {
-        const parsed = userPasswordValidation.safeParse(req.body.profileData);
+        const parsed = userPasswordValidation.safeParse(req.body);
+        
         if (!parsed.success) {
-            return res.status(400).json({ error: parsed.error });
+            return res.status(400).json({
+                success: false,
+                error: parsed.error
+            });
         }
 
         await updatePasswordService({
@@ -141,9 +145,17 @@ export async function updateUserPassword(req, res) {
             data: parsed.data
         });
 
-        res.json({ success: true, message: "User password updated" });
+        res.json({
+            success: true,
+            message: "User password updated successfully"
+        });
 
     } catch (err) {
-        res.status(err.status || 500).json({ error: err.message });
+        console.log(err);
+        res.status(err.status || 500).json({
+            success: false,
+            message: err.message || "Something went wrong"  
+        });
     }
 }
+

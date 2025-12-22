@@ -9,6 +9,15 @@ route.post("/register", insertUser);
 
 route.post("/login", loginController);
 
+route.get("/profile", userSession, (req, res, next) => {
+    const user = req.user
+    console.log(user);
+    if (!user) {
+        return res.status(401).json({ success: false, data: "User not found" })
+    }
+    res.status(200).json({ success: true, data: user })
+})
+
 route.put("/updateprofile", userSession, updateUserProfile)
 route.put("/updatepassword", userSession, updateUserPassword)
 

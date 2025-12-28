@@ -251,7 +251,7 @@ export async function clientLoginController(req, res, next) {
         res.cookie("sid", result.sessionId, {
             httpOnly: true,  // Client JS cannot access this
             secure: true, // HTTPS only in prod
-            sameSite: "none", // Mitigates CSRF,
+            sameSite: "LAX", // Mitigates CSRF,
             // signed: true,
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 Days
         });

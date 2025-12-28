@@ -549,7 +549,7 @@ export const varifyOtp = async (req, res) => {
             return res.status(400).json({ message: "Invalid OTP" });
         }
 
-        const clientData = await ClientModel.findOne({ email }).lean()
+        const clientData = await ClientModel.findOne({ email })
         clientData.isVerified = true
         clientData.save()
         // ✅ OTP is correct → delete from DB to prevent reuse

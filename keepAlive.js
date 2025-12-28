@@ -2,8 +2,6 @@ import fetch from "node-fetch"; // If using Node 18+, built-in fetch works — r
 
 const URL = process.env.SERVER_URL; // Your backend URL
 
-console.log("⏳ Keep-alive bot started...");
-
 setInterval(async () => {
   try {
     await fetch(URL);

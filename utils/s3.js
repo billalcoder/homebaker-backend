@@ -32,7 +32,6 @@ export async function uploadToS3(file) {
         // --- ATTEMPT UPLOAD ---
         console.log(`📤 Sending file to S3: ${fileName}...`);
         const a = await s3.send(command);
-        console.log(a);
         console.log("✅ S3 Upload Success!");
     } catch (error) {
         // --- CATCH AWS ERROR ---

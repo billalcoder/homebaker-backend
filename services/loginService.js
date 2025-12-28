@@ -9,18 +9,21 @@ export async function loginService(loginData, model, userType) {
 
     // 1. Check User Existence
     const userData = await findEmail(email, model);
-
     if (!userData) {
         // FIX: Ensure key is 'error', NOT 'err'
-        return { statusCode: 401, error: "Invalid email or password" };
+        return { statusCode: 401, error: "Invalid email or password " };
     }
 
     // 2. Compare Password
     const isMatch = await bcrypt.compare(password, userData.password);
-
+    const isVarify = userData.isVerified
     if (!isMatch) {
         // FIX: Ensure key is 'error'
         return { statusCode: 401, error: "Invalid email or password" };
+    }
+    if (!isVarify) {
+        // FIX: Ensure key is 'error'
+        return { statusCode: 401, error: "Please varify your email" };
     }
 
     // 3. Handle Session Limits

@@ -1,7 +1,7 @@
 import mongoose from "mongoose"
 
 const otpSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  email: { type: String, unique: true, sparse: true, trim: true },
   otp: { type: String, required: true },
   expireAt: { type: Date, required: true }
 });

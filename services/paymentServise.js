@@ -14,8 +14,6 @@ app.post("/create-subscription", async (req, res) => {
       quantity: 1,
       // trial_days: 7,          // Optional trial
     });
-    
-    console.log(subscription);
 
     res.json({
       success: true,

@@ -20,8 +20,7 @@ export async function updatePasswordService({ model, authUser, data }) {
     }
 
     const user = await model.findById(authUser._id);
-    console.log("user" + user);
-    console.log("data" + data);
+
     if (!user) {
         throw { status: 404, message: "User not found" };
     }

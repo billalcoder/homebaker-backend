@@ -7,7 +7,7 @@ export async function registrationService(cleanData, model) {
         // Check existing email or phone
         const existing = await model.findOne({
             $or: [{ email }, { phone }],
-        });
+        }).lean();
 
         if (existing) {
             return { error: "User already exists" };
@@ -19,7 +19,7 @@ export async function registrationService(cleanData, model) {
         }
 
         // Hash password
-        cleanData.password = await bcrypt.hash(cleanData.password, 10);
+        // cleanData.password = await bcrypt.hash(cleanData.password, 10);
 
         // Create user
         await model.create(cleanData);

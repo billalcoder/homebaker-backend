@@ -1,0 +1,14 @@
+config:
+  target: "http://localhost:4000"
+  phases:
+    - duration: 10
+      arrivalRate: 5
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      Cookie: "sid=694912fe69962e48d44bc755"
+
+scenarios:
+  - flow:
+      - get:
+          url: "/order/shop"

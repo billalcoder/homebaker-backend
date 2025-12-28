@@ -15,8 +15,8 @@ import review from "./Routes/review.js"
 import searchRoutes from "./Routes/search.js"
 const app = express()
 
-app.use(express.json())
-app.use(cors({ origin: ["http://localhost:5502", "http://localhost:5173","http://localhost:5174","https://homebaker.netlify.app" , "https://bakerlane.netlify.app"], credentials: true }))
+app.use(express.json({ limit: '50kb' }))
+app.use(cors({ origin: ["http://localhost:5502", "http://localhost:5173", "http://localhost:5174", "https://homebaker.netlify.app", "https://bakerlane.netlify.app"], credentials: true }))
 app.use(cookieParser(process.env.SECRET))
 app.use(sanitizeRequest)
 app.use(helmet({
@@ -37,19 +37,19 @@ app.get("/", (req, res) => {
     res.status(200).send("Backend is alive!");
 });
 
-app.use(limiter);
+// app.use(limiter);
 
 app.use("/auth", auth)
 
 app.use("/client", client)
 
-app.use("/order" , order)
+app.use("/order", order)
 
-app.use("/payment" , payment)
+app.use("/payment", payment)
 
-app.use("/shop" , shop)
+app.use("/shop", shop)
 
-app.use("/review" , review)
+app.use("/review", review)
 
 app.use("/search", searchRoutes);
 

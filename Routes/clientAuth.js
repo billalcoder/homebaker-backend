@@ -10,10 +10,12 @@ import {
     getClientdata,
     getProduct,
     getshopdata,
-    updatePassword,
+    sendOtp,
+    updateClientPassword,
     updateProductController,
     updateprofile,
-    updateShopdata
+    updateShopdata,
+    varifyOtp
 } from "../controllers/clientLoginController.js";
 
 import { upload } from "../middlewares/upload.js";
@@ -38,7 +40,7 @@ route.put("/updateshop", userSession,
 );
 route.put("/product/:id", userSession, upload.array("productImages", 5), updateProductController);
 route.put("/updateprofile" , userSession , updateprofile)
-route.put("/updatepassword" , userSession , updatePassword)
+route.put("/updatepassword" , userSession , updateClientPassword)
 
 // POST Routes
 route.post("/register", clientRegisterController);
@@ -46,7 +48,8 @@ route.post("/login", clientLoginController);
 route.post("/logout", userSession, clientLogoutController);
 route.post("/portfolio", userSession, upload.array("portfolioImages", 7), addPortfolioImagesController);
 route.post("/product", userSession, upload.array("productImages", 5), addProductData)
-
+route.post("/sendOtp", sendOtp)
+route.post("/varifyOtp", varifyOtp)
 // Delete request
 route.delete("/product/:id", userSession, deleteProductController);
 route.delete("/portfolio/:itemId", userSession, deletePortfolioItem);

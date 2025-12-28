@@ -113,7 +113,7 @@ export async function updateUserProfile(req, res) {
         if (!parsed.success) {
             return res.status(400).json({ error: parsed.error });
         }
-        console.log(req.user);
+
 
         await updateProfileService({
             model: userModel,
@@ -151,7 +151,7 @@ export async function updateUserPassword(req, res) {
         });
 
     } catch (err) {
-        console.log(err);
+
         res.status(err.status || 500).json({
             success: false,
             message: err.message || "Something went wrong"  

@@ -82,6 +82,56 @@ export async function createOrder(req, res) {
     }
 }
 
+const statusFlow = {
+  pending: ["preparing", "cancelled"],
+  preparing: ["on-the-way", "cancelled"],
+  "on-the-way": ["delivered"],
+  delivered: [],
+  cancelled: []
+};
+
+export async function updateStatus(req, res) {
+  try {
+    const { orderId, status } = req.body;
+
+    if (!orderId || !status) {
+      return res.status(400).json({
+        success: false,
+        message: "OrderId and status are required"
+      });
+    }
+
+    const order = await orderModel.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    const allowedNextStatus = statusFlow[order.orderStatus];
+
+    if (!allowedNextStatus.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot change status from ${order.orderStatus} to ${status}`
+      });
+    }
+
+    order.orderStatus = status;
+    await order.save();
+
+    res.json({
+      success: true,
+      message: "Order status updated",
+      order
+    });
+
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+}
+
 export async function getOrder(req, res) {
     try {
         // const { id } = req.params;
@@ -123,7 +173,7 @@ export async function getMyOrders(req, res) {
         const user = req.user;
 
         const orders = await orderModel.find({ userId: user._id })
-            .populate({ path: "shopId", select: "shopName" }).populate({path : "items.productId"})
+            .populate({ path: "shopId", select: "shopName" }).populate({ path: "items.productId" })
             .select("-__v")
             .sort({ createdAt: -1 });
 
@@ -137,14 +187,13 @@ export async function getMyOrders(req, res) {
 export async function getShopOrders(req, res) {
     try {
         const user = req.user;
-        console.log(user);
 
-        const shopData = await ShopModel.findOne({ clientId: user._id })
+        const shopData = await ShopModel.findOne({ clientId: user._id }).lean()
         if (!shopData) {
             return res.status(403).json({ success: false, error: "Only shop owners can access this" });
         }
 
-        const orders = await orderModel.find({ shopId: shopData._id })
+        const orders = await orderModel.find({ shopId: shopData._id }).lean()
             .populate({ path: "userId", select: "name email phone" })
             .populate({
                 path: "items.productId",
@@ -152,7 +201,25 @@ export async function getShopOrders(req, res) {
                 select: "productName images"
             })
             .sort({ createdAt: -1 });
-        res.json({ success: true, length : orders.length, data: orders });
+        res.json({ success: true, length: orders.length, data: orders });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, error: "Server error" });
+    }
+}
+
+export async function getShopLength(req, res) {
+    try {
+        const user = req.user;
+
+        const shopData = await ShopModel.findOne({ clientId: user._id }).lean()
+        if (!shopData) {
+            return res.status(403).json({ success: false, error: "Only shop owners can access this" });
+        }
+
+        const orders = await orderModel.find({ shopId: shopData._id }).lean()
+
+        res.json({ success: true, length: orders.length });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, error: "Server error" });
@@ -192,3 +259,35 @@ export async function deleteOrder(req, res) {
         res.status(500).json({ success: false, error: "Server error" });
     }
 }
+
+// export async function getOrderById(req, res) {
+//     try {
+//         const { id } = req.params;
+//         const user = req.user;
+
+//         // Validate ObjectId
+//         if (!mongoose.Types.ObjectId.isValid(id)) {
+//             return res.status(400).json({ success: false, error: "Invalid orderId" });
+//         }
+
+//         const order = await orderModel.findById(id).populate("shopId").populate("userId").select("-password").populate("items.productId");
+
+//         if (!order) {
+//             return res.status(404).json({ success: false, error: "Order not found" });
+//         }
+
+//         // Permission check
+//         // const isBuyer = order.userId?.toString() === user._id?.toString();
+//         // const isShopOwner = order.shopId?._id.toString() === user.shopId?.toString();
+
+//         // if (!isBuyer && !isShopOwner) {
+//         //     return res.status(403).json({ success: false, error: "You cannot see this order" });
+//         // }
+
+//         res.json({ success: true, message: order });
+
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ success: false, error: "Server error" });
+//     }
+// }

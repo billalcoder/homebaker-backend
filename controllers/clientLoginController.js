@@ -10,9 +10,13 @@ import { upload } from "../middlewares/upload.js";
 import { ProductModel } from "../models/ProductModel.js";
 import { shopValidation } from "../validations/shopValidation.js";
 import {
-  updateProfileService,
-  updatePasswordService
+    updateProfileService,
+    updatePasswordService
 } from "../services/ProfileUpdate.js";
+import { userPasswordValidation } from "../validations/userValidation.js";
+import { sendOtpSchema, verifyOtpSchema } from "../validations/otpValidation.js";
+import { otpModel } from "../models/OTPModel.js"
+import { sendOtpMail } from "../utils/otp.js";
 // import { registrationService, loginService, logoutService } from "../services/"; // Adjust path
 
 // Helper to handle Zod errors clearly
@@ -30,7 +34,6 @@ export async function getClientdata(req, res, next) {
 
         res.status(200).json({ name, phone, email })
     } catch (error) {
-        console.log(error);
         next(error)
     }
 }
@@ -55,11 +58,14 @@ export async function updateprofile(req, res) {
     }
 }
 
-export async function updatePassword(req, res) {
+export async function updateClientPassword(req, res) {
     try {
-        const parsed = clientUpdatePasswordValidation.safeParse(req.body.profileData);
+        const parsed = userPasswordValidation.safeParse(req.body);
         if (!parsed.success) {
-            return res.status(400).json({ error: parsed.error });
+            return res.status(400).json({
+                success: false,
+                error: parsed.error
+            });
         }
 
         await updatePasswordService({
@@ -68,10 +74,16 @@ export async function updatePassword(req, res) {
             data: parsed.data
         });
 
-        res.json({ success: true, message: "Client password updated" });
+        res.json({
+            success: true,
+            message: "User password updated successfully"
+        });
 
     } catch (err) {
-        res.status(err.status || 500).json({ error: err.message });
+        res.status(err.status || 500).json({
+            success: false,
+            message: err.message || "Something went wrong"
+        });
     }
 }
 
@@ -81,7 +93,7 @@ export async function getshopdata(req, res, next) {
         if (!clientData) {
             return res.status(404).json({ error: "client not found!" })
         }
-        const shopData = await ShopModel.findOne({ clientId: clientData._id })
+        const shopData = await ShopModel.findOne({ clientId: clientData._id }).lean()
         if (!shopData) {
             return res.status(404).json({ error: "shop not found!" })
         }
@@ -91,7 +103,6 @@ export async function getshopdata(req, res, next) {
 
         res.status(200).json(shopData)
     } catch (error) {
-        console.log(error);
         next(error)
     }
 
@@ -100,7 +111,7 @@ export async function getshopdata(req, res, next) {
 export async function updateShopdata(req, res, next) {
     try {
         const clientData = req.user;
-        console.log(clientData);
+
         const files = req.files || {};
 
         const shop = await ShopModel.findOne({ clientId: clientData._id });
@@ -148,11 +159,11 @@ export async function deletePortfolioItem(req, res, next) {
         const clientId = req.user._id;
         const itemId = req.params.itemId; // passed in URL
 
-        const shop = await ShopModel.findOne({ clientId });
+        const shop = await ShopModel.findOne({ clientId }).lean();
         if (!shop) return res.status(404).json({ error: "Shop not found" });
 
         // 1. Find the item in the array
-        const item = shop.portfolio.id(itemId); // Mongoose subdocument helper
+        const item = shop.portfolio._id(itemId); // Mongoose subdocument helper
         if (!item) return res.status(404).json({ error: "Image not found" });
 
         // 2. Delete from AWS S3
@@ -200,8 +211,6 @@ export async function clientRegisterController(req, res, next) {
             });
         }
 
-        console.log(validationResult.data);
-
         // 2. Call Service
         const result = await registrationService(validationResult.data, ClientModel);
 
@@ -217,14 +226,11 @@ export async function clientRegisterController(req, res, next) {
 
 export async function clientLoginController(req, res, next) {
     try {
-
-        console.log(!req.body.email, !req.body.password);
         // 1. Basic Validation
         if (!req.body.email || !req.body.password) {
             return res.status(400).json({ error: "Email and Password are required" });
         }
         const data = clientLoginValidation.safeParse(req.body)
-        console.log(data);
         if (!data.success) {
             return res.status(400).json({
                 error: "Validation Error",
@@ -233,8 +239,8 @@ export async function clientLoginController(req, res, next) {
         }
 
         // 2. Call Service
-        const result = await loginService(data.data , ClientModel , "Client");
-
+        const result = await loginService(data.data, ClientModel, "Client");
+    
         if (result.error) {
             // Use the status code provided by the service, default to 400
             return res.status(result.statusCode || 400).json({ error: result.error });
@@ -260,7 +266,7 @@ export async function clientLogoutController(req, res, next) {
     try {
         // Get session ID from cookies
         const sessionId = req.cookies.sid;
-        console.log(sessionId);
+    
         if (!sessionId) {
             return res.status(404).json({ message: "No session Found" })
         }
@@ -279,7 +285,6 @@ export async function addPortfolioImagesController(req, res, next) {
     try {
         const clientId = req.user.id; // From Auth Middleware
 
-        console.log("this is a clinntId " + clientId);
         const files = req.files; // <--- Note: req.files (plural) for array
 
         // 1. Basic Validation
@@ -287,7 +292,7 @@ export async function addPortfolioImagesController(req, res, next) {
             return res.status(400).json({ error: "No images uploaded" });
         }
 
-        const client = await ShopModel.findOne({ clientId });
+        const client = await ShopModel.findOne({ clientId })
         if (!client) return res.status(404).json({ error: "Client not found" });
 
         // 2. Critical Limit Check
@@ -316,7 +321,7 @@ export async function addPortfolioImagesController(req, res, next) {
 
         // 5. Push to Mongo & Save
         client.portfolio.push(...newItems); // Spread operator to push multiple
-        await client.save();
+        await client.save()
 
         return res.status(200).json({
             message: `${newItems.length} images added successfully`,
@@ -333,7 +338,7 @@ export async function addProductData(req, res, next) {
         const clientId = req.user._id;
 
         // 1. FIND THE SHOP
-        const shop = await ShopModel.findOne({ clientId });
+        const shop = await ShopModel.findOne({ clientId }).lean();
 
         if (!shop) {
             return res.status(404).json({
@@ -399,13 +404,12 @@ export async function getProduct(req, res, next) {
             return res.status(401).json({ error: "Unauthorize Access" })
         }
 
-        const productData = await ProductModel.find({ clientId: user })
+        const productData = await ProductModel.find({ clientId: user }).lean()
         if (!productData) {
             res.status(404).json({ error: "product not found" })
         }
         return res.status(200).json({ data: productData })
     } catch (error) {
-        console.log(error);
         next(error)
     }
 }
@@ -416,7 +420,7 @@ export async function deleteProductController(req, res, next) {
         const productId = req.params.id;
 
         // 1. Find Shop (Ownership Check)
-        const shop = await ShopModel.findOne({ clientId });
+        const shop = await ShopModel.findOne({ clientId }).lean();
         if (!shop) return res.status(404).json({ error: "Shop not found" });
 
         // 2. Find Product
@@ -449,10 +453,10 @@ export async function updateProductController(req, res, next) {
         const productId = req.params.id;
 
         // 1. Ownership Check
-        const shop = await ShopModel.findOne({ clientId });
+        const shop = await ShopModel.findOne({ clientId }).lean();
         if (!shop) return res.status(404).json({ error: "Shop not found" });
 
-        const product = await ProductModel.findOne({ _id: productId, shopId: shop._id });
+        const product = await ProductModel.findOne({ _id: productId, shopId: shop._id }).lean();
         if (!product) return res.status(404).json({ error: "Product not found" });
 
         // 2. Handle Text Data (Convert Numbers like in Create)
@@ -485,7 +489,7 @@ export async function updateProductController(req, res, next) {
             productId,
             { $set: updates },
             { new: true, runValidators: true }
-        );
+        ).lean();
 
         return res.status(200).json({
             message: "Product updated successfully",
@@ -494,5 +498,66 @@ export async function updateProductController(req, res, next) {
 
     } catch (error) {
         next(error);
+    }
+}
+
+export const sendOtp = async (req, res) => {
+    try {
+        const result = sendOtpSchema.safeParse(req.body);
+    
+        if (!result.success) return res.status(400).json({ err: result.error.errors });
+        const data = result.data
+        const email = data?.email
+        if (!email) {
+            return res.status(400).json({ error: "invalid email" })
+        }
+
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // Save OTP to DB (replace old OTP if exists)
+        await otpModel.findOneAndUpdate(
+            { email },
+            { otp, createdAt: new Date() },
+            { upsert: true, new: true }
+        ).lean();
+
+        // Send OTP mail
+        await sendOtpMail(email, otp);
+
+        return res.status(200).json({ message: "If the email is registered, OTP has been sent" });
+    } catch (error) {
+        console.error("❌ Error sending OTP:", error);
+        return res.status(500).json({ message: "Failed to send OTP" });
+    }
+}
+
+export const varifyOtp = async (req, res) => {
+    try {
+        const result = verifyOtpSchema.safeParse(req.body);
+        if (!result.success) return res.status(400).json({ err: result.error.errors });
+        const { email, otp } = result.data
+
+        // Find OTP from DB
+        const record = await otpModel.findOne({ email }).lean();
+
+        if (!record) {
+            return res.status(400).json({ message: "OTP expired or not found" });
+        }
+
+        if (record.otp !== otp) {
+            return res.status(400).json({ message: "Invalid OTP" });
+        }
+
+        const clientData = await ClientModel.findOne({ email }).lean()
+        clientData.isVerified = true
+        clientData.save()
+        // ✅ OTP is correct → delete from DB to prevent reuse
+        await otpModel.deleteOne({ email });
+
+        return res.status(200).json({ message: "OTP verified successfully" });
+    } catch (error) {
+        console.error("❌ Error verifying OTP:", error);
+        return res.status(500).json({ message: "Failed to verify OTP" });
     }
 }

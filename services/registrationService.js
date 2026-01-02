@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 
 export async function registrationService(cleanData, model) {
+    cleanData.email = cleanData.email.toLowerCase();
     const { email, phone, terms } = cleanData;
 
     try {

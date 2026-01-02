@@ -72,6 +72,11 @@ const productSchema = new mongoose.Schema(
       default: true
     },
 
+    isBestProduct: {
+      type: Boolean,
+      default: false
+    },
+
     /* ⭐⭐⭐ REVIEW FIELDS (NEW) ⭐⭐⭐ */
 
     averageRating: {

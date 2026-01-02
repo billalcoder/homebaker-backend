@@ -46,7 +46,7 @@ route.put("/updatepassword" , userSession , updateClientPassword)
 route.post("/register", clientRegisterController);
 route.post("/login", clientLoginController);
 route.post("/logout", userSession, clientLogoutController);
-route.post("/portfolio", userSession, upload.array("portfolioImages", 7), addPortfolioImagesController);
+route.post("/portfolio", userSession, upload.single("portfolioImages", 7), addPortfolioImagesController);
 route.post("/product", userSession, upload.array("productImages", 5), addProductData)
 route.post("/sendOtp", sendOtp)
 route.post("/varifyOtp", varifyOtp)

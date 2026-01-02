@@ -93,7 +93,10 @@ export async function getshopdata(req, res, next) {
         if (!clientData) {
             return res.status(404).json({ error: "client not found!" })
         }
-        const shopData = await ShopModel.findOne({ clientId: clientData._id }).lean()
+        const shopData = await ShopModel
+            .findOne({ clientId: clientData._id })
+            .populate("portfolio")
+            .lean();
         if (!shopData) {
             return res.status(404).json({ error: "shop not found!" })
         }
@@ -159,11 +162,14 @@ export async function deletePortfolioItem(req, res, next) {
         const clientId = req.user._id;
         const itemId = req.params.itemId; // passed in URL
 
-        const shop = await ShopModel.findOne({ clientId }).lean();
+        const shop = await ShopModel.findOne({ clientId })
         if (!shop) return res.status(404).json({ error: "Shop not found" });
 
         // 1. Find the item in the array
-        const item = shop.portfolio._id(itemId); // Mongoose subdocument helper
+        const item = shop.portfolio.find(
+            (p) => p._id.toString() === itemId
+        );
+        // Mongoose subdocument helper
         if (!item) return res.status(404).json({ error: "Image not found" });
 
         // 2. Delete from AWS S3
@@ -240,7 +246,7 @@ export async function clientLoginController(req, res, next) {
 
         // 2. Call Service
         const result = await loginService(data.data, ClientModel, "Client");
-    
+
         if (result.error) {
             // Use the status code provided by the service, default to 400
             return res.status(result.statusCode || 400).json({ error: result.error });
@@ -266,7 +272,7 @@ export async function clientLogoutController(req, res, next) {
     try {
         // Get session ID from cookies
         const sessionId = req.cookies.sid;
-    
+
         if (!sessionId) {
             return res.status(404).json({ message: "No session Found" })
         }
@@ -281,50 +287,130 @@ export async function clientLogoutController(req, res, next) {
     }
 }
 
+// export async function addPortfolioImagesController(req, res, next) {
+//     try {
+//         const clientId = req.user.id; // From Auth Middleware
+//         console.log( "this is the req from the frontend" + req.body);
+//         const files = req.files; // <--- Note: req.files (plural) for array
+
+//         // 1. Basic Validation
+//         if (!files || files.length === 0) {
+//             return res.status(400).json({ error: "No images uploaded" });
+//         }
+
+//         const client = await ShopModel.findOne({ clientId })
+//         if (!client) return res.status(404).json({ error: "Client not found" });
+
+//         // 2. Critical Limit Check
+//         // Existing DB images + New images attempting to upload
+//         const totalImages = client.portfolio.length + files.length;
+
+//         if (totalImages > 7) {
+//             return res.status(400).json({
+//                 error: `Limit exceeded. You have ${client.portfolio.length} images. You can only add ${7 - client.portfolio.length} more.`
+//             });
+//         }
+
+//         // 3. Upload ALL files to S3 in Parallel (Fast)
+//         // We use Promise.all to map the array of files to S3 upload promises
+//         const uploadPromises = files.map(file => uploadToS3(file));
+
+//         const imageUrls = await Promise.all(uploadPromises);
+
+//         // 4. Create Database Objects
+//         // For bulk upload, we set default titles. User can edit specific details later.
+//         const newItems = imageUrls.map(url => ({
+//             imageUrl: url,
+//             title: req.body.title, // Default empty, user updates later via 'Edit' API
+//             price: req.body.price,
+//             unitType: req.body.unitType,
+//             unitValue: req.body.unitValue,
+//             category: req.body.category,
+//         }));
+
+//         // 5. Push to Mongo & Save
+//         client.portfolio.push(...newItems); // Spread operator to push multiple
+//         await client.save()
+
+//         return res.status(200).json({
+//             message: `${newItems.length} images added successfully`,
+//             portfolio: client.portfolio
+//         });
+
+//     } catch (error) {
+//         next(error);
+//     }
+// }
+
 export async function addPortfolioImagesController(req, res, next) {
     try {
-        const clientId = req.user.id; // From Auth Middleware
+        const clientId = req.user.id;
+        const shopId = await ShopModel.findOne({ clientId })
+        console.log("Body:", req.body);
 
-        const files = req.files; // <--- Note: req.files (plural) for array
-
-        // 1. Basic Validation
-        if (!files || files.length === 0) {
-            return res.status(400).json({ error: "No images uploaded" });
+        const file = req.file; // ✅ SINGLE FILE
+        const { title, price, unitType, unitValue, category } = req.body;
+        console.log(file);
+        // 1️⃣ Validation
+        if (!file) {
+            return res.status(400).json({ error: "Product image is required" });
         }
 
-        const client = await ShopModel.findOne({ clientId })
-        if (!client) return res.status(404).json({ error: "Client not found" });
+        if (!title || !price || !unitType || !unitValue || !category) {
+            return res.status(400).json({ error: "All fields are required" });
+        }
 
-        // 2. Critical Limit Check
-        // Existing DB images + New images attempting to upload
-        const totalImages = client.portfolio.length + files.length;
+        if (!["kg", "quantity"].includes(unitType)) {
+            return res.status(400).json({ error: "Invalid unit type" });
+        }
 
-        if (totalImages > 7) {
+        // 2️⃣ Unit validation
+        if (unitType === "kg" && Number(unitValue) <= 0) {
+            return res.status(400).json({ error: "Invalid weight value" });
+        }
+
+        if (unitType === "quantity" && Number(unitValue) < 1) {
+            return res.status(400).json({ error: "Invalid quantity value" });
+        }
+
+        const client = await ShopModel.findOne({ clientId });
+        if (!client) {
+            return res.status(404).json({ error: "Client not found" });
+        }
+
+        // 3️⃣ Portfolio limit (PRODUCT based)
+        if (client.portfolio.length >= 7) {
             return res.status(400).json({
-                error: `Limit exceeded. You have ${client.portfolio.length} images. You can only add ${7 - client.portfolio.length} more.`
+                error: "Portfolio limit reached (Max 7 products allowed)"
             });
         }
 
-        // 3. Upload ALL files to S3 in Parallel (Fast)
-        // We use Promise.all to map the array of files to S3 upload promises
-        const uploadPromises = files.map(file => uploadToS3(file));
+        // 4️⃣ Upload to S3
+        const images = await uploadToS3(file);
 
-        const imageUrls = await Promise.all(uploadPromises);
+        // 5️⃣ Create Product Object
+        const newItem = {
+            images,
+            productName: title,
+            price,
+            unitType,
+            unitValue,
+            category,
+        };
 
-        // 4. Create Database Objects
-        // For bulk upload, we set default titles. User can edit specific details later.
-        const newItems = imageUrls.map(url => ({
-            imageUrl: url,
-            title: "", // Default empty, user updates later via 'Edit' API
-            price: req.body.price
-        }));
+        const productData = await ProductModel.create({
+            shopId: shopId._id,
+            clientId,
+            ...newItem,
+            isBestProduct: true
+        })
 
-        // 5. Push to Mongo & Save
-        client.portfolio.push(...newItems); // Spread operator to push multiple
-        await client.save()
+        client.portfolio.push(productData._id);
+        await client.save();
 
-        return res.status(200).json({
-            message: `${newItems.length} images added successfully`,
+        return res.status(201).json({
+            message: "Product added successfully",
+            product: newItem,
             portfolio: client.portfolio
         });
 
@@ -332,6 +418,7 @@ export async function addPortfolioImagesController(req, res, next) {
         next(error);
     }
 }
+
 
 export async function addProductData(req, res, next) {
     try {
@@ -503,11 +590,12 @@ export async function updateProductController(req, res, next) {
 
 export const sendOtp = async (req, res) => {
     try {
+        console.log(req.body);
         const result = sendOtpSchema.safeParse(req.body);
-    
+
         if (!result.success) return res.status(400).json({ err: result.error.errors });
         const data = result.data
-        const email = data?.email
+        const email = data?.email.toLowerCase()
         if (!email) {
             return res.status(400).json({ error: "invalid email" })
         }
@@ -523,7 +611,7 @@ export const sendOtp = async (req, res) => {
         ).lean();
 
         // Send OTP mail
-        await sendOtpMail(email, otp);
+        await sendOtpMail(email.toLowerCase(), otp);
 
         return res.status(200).json({ message: "If the email is registered, OTP has been sent" });
     } catch (error) {
@@ -561,3 +649,4 @@ export const varifyOtp = async (req, res) => {
         return res.status(500).json({ message: "Failed to verify OTP" });
     }
 }
+

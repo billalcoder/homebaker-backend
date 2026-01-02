@@ -65,6 +65,7 @@ export const productValidation = z.object({
     .default("Others"),
 
   isActive: z.boolean().default(true),
+  isBestProduct: z.boolean().default(false),
 });
 
 

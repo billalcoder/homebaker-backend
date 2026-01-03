@@ -47,6 +47,8 @@ export async function deleteFromS3(fileUrl) {
         // 1. Extract the "Key" (filename) from the full CloudFront URL
         // URL: https://d123.cloudfront.net/a1b2c3d4.png
         // Key: a1b2c3d4.png
+
+        console.log(fileUrl);
         const fileKey = fileUrl.split('/').pop();
 
         const params = {

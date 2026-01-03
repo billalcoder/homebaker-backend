@@ -38,7 +38,7 @@ export async function getClientdata(req, res, next) {
     }
 }
 
-export async function updateprofile(req, res) {
+export async function updateprofile(req, res, next) {
     try {
         const parsed = clientUpdateValidation.safeParse(req.body.profile);
         if (!parsed.success) {
@@ -52,13 +52,14 @@ export async function updateprofile(req, res) {
         });
 
         res.json({ success: true, message: "Client profile updated" });
+        // throw new Error("❌ Profile update test failure");
 
     } catch (err) {
-        res.status(err.status || 500).json({ error: err.message });
+        next(err)
     }
 }
 
-export async function updateClientPassword(req, res) {
+export async function updateClientPassword(req, res, next) {
     try {
         const parsed = userPasswordValidation.safeParse(req.body);
         if (!parsed.success) {
@@ -80,10 +81,7 @@ export async function updateClientPassword(req, res) {
         });
 
     } catch (err) {
-        res.status(err.status || 500).json({
-            success: false,
-            message: err.message || "Something went wrong"
-        });
+        next(err)
     }
 }
 
@@ -106,7 +104,7 @@ export async function getshopdata(req, res, next) {
 
         res.status(200).json(shopData)
     } catch (error) {
-        next(error)
+        next(error);
     }
 
 }
@@ -162,24 +160,25 @@ export async function deletePortfolioItem(req, res, next) {
         const clientId = req.user._id;
         const itemId = req.params.itemId; // passed in URL
 
-        const shop = await ShopModel.findOne({ clientId })
+        const shop = await ShopModel.findOne({ clientId }).populate("portfolio")
         if (!shop) return res.status(404).json({ error: "Shop not found" });
 
         // 1. Find the item in the array
-        const item = shop.portfolio.find(
-            (p) => p._id.toString() === itemId
-        );
-        // Mongoose subdocument helper
-        if (!item) return res.status(404).json({ error: "Image not found" });
-
+        // const item = shop.portfolio.find(
+        //     (p) => p.toString() === itemId
+        // );
+        // console.log("this is shop data" + shop.portfolio);
+        // // Mongoose subdocument helper
+        // if (!item) return res.status(404).json({ error: "Image not found" });
         // 2. Delete from AWS S3
-        await deleteFromS3(item.imageUrl);
+        console.log("item " + shop.portfolio);
+        await deleteFromS3(shop.portfolio.imageUrl);
 
         // 3. Remove from Database Array
         // $pull removes an item from an array that matches the condition
         await ShopModel.findOneAndUpdate(
             { clientId },
-            { $pull: { portfolio: { _id: itemId } } }
+            { $pull: { portfolio: itemId } }
         );
 
         return res.status(200).json({ message: "Portfolio item deleted" });
@@ -588,7 +587,7 @@ export async function updateProductController(req, res, next) {
     }
 }
 
-export const sendOtp = async (req, res) => {
+export const sendOtp = async (req, res, next) => {
     try {
         console.log(req.body);
         const result = sendOtpSchema.safeParse(req.body);
@@ -615,12 +614,11 @@ export const sendOtp = async (req, res) => {
 
         return res.status(200).json({ message: "If the email is registered, OTP has been sent" });
     } catch (error) {
-        console.error("❌ Error sending OTP:", error);
-        return res.status(500).json({ message: "Failed to send OTP" });
+        next(error)
     }
 }
 
-export const varifyOtp = async (req, res) => {
+export const varifyOtp = async (req, res, next) => {
     try {
         const result = verifyOtpSchema.safeParse(req.body);
         if (!result.success) return res.status(400).json({ err: result.error.errors });
@@ -645,8 +643,7 @@ export const varifyOtp = async (req, res) => {
 
         return res.status(200).json({ message: "OTP verified successfully" });
     } catch (error) {
-        console.error("❌ Error verifying OTP:", error);
-        return res.status(500).json({ message: "Failed to verify OTP" });
+        next(error)
     }
 }
 

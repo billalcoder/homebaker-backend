@@ -3,7 +3,7 @@ import { orderModel } from "../models/OrderModel.js";
 import { ProductModel } from "../models/ProductModel.js";
 import { ShopModel } from "../models/ShopModel.js";
 
-export async function addReview(req, res) {
+export async function addReview(req, res ,next) {
     try {
         const userId = req.user._id;
         const { orderId, productId, rating, comment } = req.body;
@@ -65,11 +65,11 @@ export async function addReview(req, res) {
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ success: false, error: "Server error" });
+        next(err)
     }
 }
 
-export async function getProductReviews(req, res) {
+export async function getProductReviews(req, res ,next) {
   try {
     const { productId } = req.params;
 
@@ -84,7 +84,7 @@ export async function getProductReviews(req, res) {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: "Failed to load reviews" });
+    next(err)
   }
 }
 

@@ -4,7 +4,7 @@ import { ProductModel } from "../models/ProductModel.js";
 import { productIdValidation } from "../validations/productValidation.js";
 import { ShopModel } from "../models/ShopModel.js";
 
-export async function createOrder(req, res) {
+export async function createOrder(req, res, next) {
     try {
         const userdata = req.user;
 
@@ -75,64 +75,61 @@ export async function createOrder(req, res) {
 
     } catch (err) {
         console.error(err);
-        return res.status(500).json({
-            success: false,
-            error: "Server Error"
-        });
+        next(err)
     }
 }
 
 const statusFlow = {
-  pending: ["preparing", "cancelled"],
-  preparing: ["on-the-way", "cancelled"],
-  "on-the-way": ["delivered"],
-  delivered: [],
-  cancelled: []
+    pending: ["preparing", "cancelled"],
+    preparing: ["on-the-way", "cancelled"],
+    "on-the-way": ["delivered"],
+    delivered: [],
+    cancelled: []
 };
 
-export async function updateStatus(req, res) {
-  try {
-    const { orderId, status } = req.body;
+export async function updateStatus(req, res, next) {
+    try {
+        const { orderId, status } = req.body;
 
-    if (!orderId || !status) {
-      return res.status(400).json({
-        success: false,
-        message: "OrderId and status are required"
-      });
+        if (!orderId || !status) {
+            return res.status(400).json({
+                success: false,
+                message: "OrderId and status are required"
+            });
+        }
+
+        const order = await orderModel.findById(orderId);
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: "Order not found"
+            });
+        }
+
+        const allowedNextStatus = statusFlow[order.orderStatus];
+
+        if (!allowedNextStatus.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot change status from ${order.orderStatus} to ${status}`
+            });
+        }
+
+        order.orderStatus = status;
+        await order.save();
+
+        res.json({
+            success: true,
+            message: "Order status updated",
+            order
+        });
+
+    } catch (err) {
+        next(err)
     }
-
-    const order = await orderModel.findById(orderId);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found"
-      });
-    }
-
-    const allowedNextStatus = statusFlow[order.orderStatus];
-
-    if (!allowedNextStatus.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot change status from ${order.orderStatus} to ${status}`
-      });
-    }
-
-    order.orderStatus = status;
-    await order.save();
-
-    res.json({
-      success: true,
-      message: "Order status updated",
-      order
-    });
-
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Server error" });
-  }
 }
 
-export async function getOrder(req, res) {
+export async function getOrder(req, res, next) {
     try {
         // const { id } = req.params;
         const user = req.user;
@@ -164,11 +161,11 @@ export async function getOrder(req, res) {
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ success: false, error: "Server error" });
+        next(err)
     }
 }
 
-export async function getMyOrders(req, res) {
+export async function getMyOrders(req, res, next) {
     try {
         const user = req.user;
 
@@ -180,11 +177,11 @@ export async function getMyOrders(req, res) {
         res.json({ success: true, data: orders });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ success: false, error: "Server error" });
+        next(err)
     }
 }
 
-export async function getShopOrders(req, res) {
+export async function getShopOrders(req, res, next) {
     try {
         const user = req.user;
 
@@ -204,11 +201,11 @@ export async function getShopOrders(req, res) {
         res.json({ success: true, length: orders.length, data: orders });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ success: false, error: "Server error" });
+        next(err)
     }
 }
 
-export async function getShopLength(req, res) {
+export async function getShopLength(req, res, next) {
     try {
         const user = req.user;
 
@@ -222,11 +219,11 @@ export async function getShopLength(req, res) {
         res.json({ success: true, length: orders.length });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ success: false, error: "Server error" });
+        next(err)
     }
 }
 
-export async function deleteOrder(req, res) {
+export async function deleteOrder(req, res, next) {
     try {
         const { id } = req.params;
         const user = req.user;
@@ -256,7 +253,7 @@ export async function deleteOrder(req, res) {
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ success: false, error: "Server error" });
+        next(err)
     }
 }
 

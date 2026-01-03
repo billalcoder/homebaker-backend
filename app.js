@@ -13,6 +13,8 @@ import payment from "./Routes/payment.js"
 import shop from "./Routes/shop.js"
 import review from "./Routes/review.js"
 import searchRoutes from "./Routes/search.js"
+import { errorHandler } from "./middlewares/errorHandler.js"
+import { ErrorLog } from "./models/errorlog.js"
 const app = express()
 
 app.use(express.json({ limit: '50kb' }))
@@ -37,10 +39,43 @@ app.get("/", (req, res) => {
     res.status(200).send("Backend is alive!");
 });
 
-app.post("/log/frontend", (req, res) => {
-    console.log("FRONTEND LOG:", req.body);
+app.post("/log/frontend", async (req, res) => {
+  try {
+    const {
+      message,
+      stack,
+      route,
+      method,
+      statusCode,
+      requestBody,
+      source,
+      platform,
+      email,
+      userId,
+    } = req.body;
+
+    await ErrorLog.create({
+      message: message || "Frontend error",
+      stack,
+      route,
+      method,
+      statusCode,
+      requestBody,
+      source: source || "frontend",
+      platform,
+      email,
+      userId,
+      userAgent: req.headers["user-agent"],
+      ip: req.ip,
+    });
+
     res.sendStatus(200);
+  } catch (err) {
+    console.error("❌ Failed to save frontend log:", err);
+    res.sendStatus(500);
+  }
 });
+
 
 // app.use(limiter);
 
@@ -58,25 +93,7 @@ app.use("/review", review)
 
 app.use("/search", searchRoutes);
 
-app.use((err, req, res, next) => {
-    console.error("❌ Error:", err);
-
-    const status = err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    if (err.name === "ZodError") {
-        return res.status(400).json({
-            success: false,
-            message: "Validation error",
-            errors: err.errors.map(e => e.message)
-        });
-    }
-
-    return res.status(status).json({
-        success: false,
-        message,
-    });
-})
+app.use(errorHandler)
 
 if (process.env.NODE_ENV !== "test") {
     app.listen(4000, (err) => {

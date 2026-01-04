@@ -148,7 +148,7 @@ export async function updateShopdata(req, res, next) {
             { new: true, runValidators: true }
         );
 
-        return res.status(200).json({ message: "Shop Profile updated", shop: updatedShop });
+        return res.status(200).json({ success: true, message: "Shop Profile updated", shop: updatedShop });
 
     } catch (error) {
         next(error);
@@ -181,7 +181,7 @@ export async function deletePortfolioItem(req, res, next) {
             { $pull: { portfolio: itemId } }
         );
 
-        return res.status(200).json({ message: "Portfolio item deleted" });
+        return res.status(200).json({ success: true, message: "Portfolio item deleted" });
 
     } catch (error) {
         next(error);
@@ -196,11 +196,12 @@ export async function addShopData(req, res, next) {
     const shopData = shopValidation.safeParse(req.body)
 
     if (!shopData.success) {
-        res.status(400).json({ error: shopData.error.errors.message })
+        return res.status(400).json({ success: false, error: shopData.error.errors.message })
     }
 
     shopData.clientId = clientId
     ShopModel.create(shopData.data)
+    res.status(400).json({ success: true, message: "shop data created successfully" })
 
 }
 
@@ -408,6 +409,7 @@ export async function addPortfolioImagesController(req, res, next) {
         await client.save();
 
         return res.status(201).json({
+            success: true,
             message: "Product added successfully",
             product: newItem,
             portfolio: client.portfolio
@@ -494,7 +496,7 @@ export async function getProduct(req, res, next) {
         if (!productData) {
             res.status(404).json({ error: "product not found" })
         }
-        return res.status(200).json({ data: productData })
+        return res.status(200).json({success: true, data: productData })
     } catch (error) {
         next(error)
     }

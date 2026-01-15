@@ -158,35 +158,49 @@ export async function updateShopdata(req, res, next) {
 export async function deletePortfolioItem(req, res, next) {
     try {
         const clientId = req.user._id;
-        const itemId = req.params.itemId; // passed in URL
+        const itemId = req.params.itemId;
 
-        const shop = await ShopModel.findOne({ clientId }).populate("portfolio")
-        if (!shop) return res.status(404).json({ error: "Shop not found" });
+        // 1️⃣ Find shop
+        const shop = await ShopModel.findOne({ clientId });
+        if (!shop) {
+            return res.status(404).json({ error: "Shop not found" });
+        }
 
-        // 1. Find the item in the array
-        // const item = shop.portfolio.find(
-        //     (p) => p.toString() === itemId
-        // );
-        // console.log("this is shop data" + shop.portfolio);
-        // // Mongoose subdocument helper
-        // if (!item) return res.status(404).json({ error: "Image not found" });
-        // 2. Delete from AWS S3
-        console.log("item " + shop.portfolio);
-        await deleteFromS3(shop.portfolio.imageUrl);
+        // 2️⃣ Find product
+        const product = await ProductModel.findById(itemId);
+        if (!product) {
+            return res.status(404).json({ error: "Product not found" });
+        }
 
-        // 3. Remove from Database Array
-        // $pull removes an item from an array that matches the condition
-        await ShopModel.findOneAndUpdate(
+        product.isBestProduct = false
+
+
+        // 3️⃣ Delete images from S3
+        if (product.images && product.images.length > 0) {
+            for (const imageUrl of product.images) {
+                await deleteFromS3(imageUrl);
+            }
+        }
+
+        // 4️⃣ Remove product from shop portfolio
+        await ShopModel.updateOne(
             { clientId },
             { $pull: { portfolio: itemId } }
         );
 
-        return res.status(200).json({ success: true, message: "Portfolio item deleted" });
+        // 5️⃣ Delete product document
+        await ProductModel.findByIdAndDelete(itemId);
+        product.save()
+        return res.status(200).json({
+            success: true,
+            message: "Portfolio item deleted successfully",
+        });
 
     } catch (error) {
         next(error);
     }
 }
+
 
 export async function addShopData(req, res, next) {
     const clientId = req.user._id
@@ -353,34 +367,35 @@ export async function addPortfolioImagesController(req, res, next) {
         console.log(file);
         // 1️⃣ Validation
         if (!file) {
-            return res.status(400).json({ error: "Product image is required" });
+            return res.status(400).json({ success: false, error: "Product image is required" });
         }
 
         if (!title || !price || !unitType || !unitValue || !category) {
-            return res.status(400).json({ error: "All fields are required" });
+            return res.status(400).json({ success: false, error: "All fields are required" });
         }
 
         if (!["kg", "quantity"].includes(unitType)) {
-            return res.status(400).json({ error: "Invalid unit type" });
+            return res.status(400).json({ success: false, error: "Invalid unit type" });
         }
 
         // 2️⃣ Unit validation
         if (unitType === "kg" && Number(unitValue) <= 0) {
-            return res.status(400).json({ error: "Invalid weight value" });
+            return res.status(400).json({ success: false, error: "Invalid weight value" });
         }
 
         if (unitType === "quantity" && Number(unitValue) < 1) {
-            return res.status(400).json({ error: "Invalid quantity value" });
+            return res.status(400).json({ success: false, error: "Invalid quantity value" });
         }
 
         const client = await ShopModel.findOne({ clientId });
         if (!client) {
-            return res.status(404).json({ error: "Client not found" });
+            return res.status(404).json({ success: false, error: "Client not found" });
         }
 
         // 3️⃣ Portfolio limit (PRODUCT based)
         if (client.portfolio.length >= 7) {
             return res.status(400).json({
+                success: false,
                 error: "Portfolio limit reached (Max 7 products allowed)"
             });
         }
@@ -496,7 +511,7 @@ export async function getProduct(req, res, next) {
         if (!productData) {
             res.status(404).json({ error: "product not found" })
         }
-        return res.status(200).json({success: true, data: productData })
+        return res.status(200).json({ success: true, data: productData })
     } catch (error) {
         next(error)
     }

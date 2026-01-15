@@ -37,7 +37,7 @@ const shopSchema = new mongoose.Schema(
     shopName: { type: String },
 
     // MVP Profile Setup: Not required on Register, but updated later
-    shopDescription: { type: String, default: "" },
+    shopDescription: { type: String, default: "About your shop will appear here.", },
     shopCategory: { type: String, default: "General" }, // e.g., Bakery, Clothing
 
     // Branding

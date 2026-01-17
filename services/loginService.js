@@ -11,7 +11,7 @@ export async function loginService(loginData, model, userType) {
     const userData = await findEmail(email, model);
     if (!userData) {
         // FIX: Ensure key is 'error', NOT 'err'
-        return { statusCode: 401, error: "Invalid email or password " };
+        return {success : false, statusCode: 401, error: "Invalid email or password " };
     }
 
     // 2. Compare Password
@@ -19,11 +19,11 @@ export async function loginService(loginData, model, userType) {
     const isVarify = userData.isVerified
     if (!isMatch) {
         // FIX: Ensure key is 'error'
-        return { statusCode: 401, error: "Invalid email or password" };
+        return {success : false, statusCode: 401, error: "Invalid email or password" };
     }
     if (!isVarify) {
         // FIX: Ensure key is 'error'
-        return { statusCode: 401, error: "Please varify your email" };
+        return { success : false,statusCode: 401, error: "Please varify your email" };
     }
 
     // 3. Handle Session Limits
@@ -55,6 +55,6 @@ export async function loginService(loginData, model, userType) {
     } catch (err) {
         console.error("Session Error:", err);
         // FIX: Ensure key is 'error' here too!
-        return { statusCode: 500, error: "Login failed during session creation" };
+        return {success : false, statusCode: 500, error: "Login failed during session creation" };
     }
 }

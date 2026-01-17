@@ -8,16 +8,31 @@ export async function getShop(req, res, next) {
   try {
     const { latitude, longitude } = req.query;
 
+    // ---------------------------------------
+    // 🟡 FALLBACK: NO LOCATION
+    // ---------------------------------------
     if (!latitude || !longitude) {
-      return res.status(400).json({
-        success: false,
-        message: "Latitude and longitude are required"
+      const shops = await ShopModel.find({ isActive: true })
+        .select("shopName shopDescription shopCategory city coverImage totalReviews")
+        .limit(20);
+
+      // 🔥 Normalize response
+      const normalized = shops.map(shop => ({
+        shop,
+        distanceInKm: null
+      }));
+
+      return res.json({
+        success: true,
+        count: normalized.length,
+        shops: normalized
       });
     }
 
+    // ---------------------------------------
+    // 🟢 WITH LOCATION (Geo Search)
+    // ---------------------------------------
     const shops = await ClientModel.aggregate([
-
-      // 1. GeoNear on client location --------------------------------
       {
         $geoNear: {
           near: {
@@ -32,7 +47,6 @@ export async function getShop(req, res, next) {
         }
       },
 
-      // 2. Join shops --------------------------------------------------
       {
         $lookup: {
           from: "shops",
@@ -42,45 +56,39 @@ export async function getShop(req, res, next) {
         }
       },
 
-      // 3. Only include clients that have a shop -----------------------
       {
         $match: {
           "shop.0": { $exists: true }
         }
       },
 
-      // 4. Unwind shop array -------------------------------------------
-      {
-        $unwind: "$shop"
-      },
+      { $unwind: "$shop" },
 
-      // 5. Convert meters → KM
       {
         $addFields: {
           distanceInKm: {
             $round: [{ $divide: ["$distance", 1000] }, 2]
           }
         }
+      },
+
+      // 🔥 Normalize shape
+      {
+        $project: {
+          shop: "$shop",
+          distanceInKm: 1
+        }
       }
     ]);
 
-    // const shops = await ShopModel.find()
-
-    if (!shops || shops.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No shops found"
-      });
-    }
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: shops.length,
       shops
     });
 
   } catch (error) {
-    next(error)
+    next(error);
   }
 }
 
@@ -262,37 +270,37 @@ export async function createOrder(req, res, next) {
 }
 
 export async function getProductByShopId(req, res, next) {
-    try {
-        const { shop } = req.params;
-        if (!shop) {
-            return res.status(400).json({
-                success: false,
-                message: "Shop ID is required"
-            });
-        }
-
-        // 1. Find shop
-        const shopData = await ShopModel.findById(shop);
-
-        if (!shopData) {
-            return res.status(404).json({
-                success: false,
-                message: "Shop not found"
-            });
-        }
-
-        // 2. Find all products of this shop
-        const products = await ProductModel.find({ shopId: shopData._id });
-
-        return res.status(200).json({
-            success: true,
-            shop,
-            products
-        });
-
-    } catch (error) {
-        next(error);
+  try {
+    const { shop } = req.params;
+    if (!shop) {
+      return res.status(400).json({
+        success: false,
+        message: "Shop ID is required"
+      });
     }
+
+    // 1. Find shop
+    const shopData = await ShopModel.findById(shop);
+
+    if (!shopData) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop not found"
+      });
+    }
+
+    // 2. Find all products of this shop
+    const products = await ProductModel.find({ shopId: shopData._id });
+
+    return res.status(200).json({
+      success: true,
+      shop,
+      products
+    });
+
+  } catch (error) {
+    next(error);
+  }
 }
 
 

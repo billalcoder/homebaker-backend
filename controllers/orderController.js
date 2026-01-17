@@ -3,12 +3,12 @@ import { orderModel } from "../models/OrderModel.js";
 import { ProductModel } from "../models/ProductModel.js";
 import { productIdValidation } from "../validations/productValidation.js";
 import { ShopModel } from "../models/ShopModel.js";
+import { sendNewOrderAlertMail, sendOrderStatusMail } from "../utils/otp.js";
 
 export async function createOrder(req, res, next) {
     try {
         const userdata = req.user;
-
-        // Validate input
+        // 1️⃣ Validate input
         const dirtyData = productIdValidation.safeParse(req.body);
         if (!dirtyData.success) {
             return res.status(400).json({
@@ -19,10 +19,10 @@ export async function createOrder(req, res, next) {
 
         const { productId, quantity } = dirtyData.data;
 
-        // 🔒 Prevent duplicate active order
+        // 2️⃣ Prevent duplicate active order
         const existingOrder = await orderModel.findOne({
             userId: userdata._id,
-            orderStatus: { $in: ["pending"] },
+            orderStatus: "pending",
             "items.productId": productId
         });
 
@@ -33,7 +33,7 @@ export async function createOrder(req, res, next) {
             });
         }
 
-        // Fetch product
+        // 3️⃣ Fetch product + baker
         const productData = await ProductModel.findById(productId)
             .populate("shopId", "shopName")
             .populate("clientId", "name email phone");
@@ -45,7 +45,7 @@ export async function createOrder(req, res, next) {
             });
         }
 
-        // Create order
+        // 4️⃣ Create order
         const order = await orderModel.create({
             shopId: productData.shopId._id,
             userId: userdata._id,
@@ -54,15 +54,24 @@ export async function createOrder(req, res, next) {
             orderStatus: "pending"
         });
 
-        const increaseOrder = await ShopModel.findById(productData.shopId._id);
+        // 5️⃣ Increase shop order count
+        await ShopModel.findByIdAndUpdate(
+            productData.shopId._id,
+            { $inc: { totalOrder: 1 } }
+        );
 
-        if (!increaseOrder) {
-            throw new Error("Shop not found");
-        }
+        // 6️⃣ Send email to baker (NON-BLOCKING)
+        sendNewOrderAlertMail({
+            bakerEmail: productData.clientId.email,
+            bakerName: productData.clientId.name,
+            shopName: productData.shopId.shopName,
+            orderId: order._id,
+            productName: productData.productName,
+            quantity,
+            totalAmount: order.totalAmount
+        }).catch(console.error);
 
-        increaseOrder.totalOrder += 1;
-        await increaseOrder.save();
-
+        // 7️⃣ Populate response
         const populatedOrder = await orderModel
             .findById(order._id)
             .populate("shopId")
@@ -75,7 +84,7 @@ export async function createOrder(req, res, next) {
 
     } catch (err) {
         console.error(err);
-        next(err)
+        next(err);
     }
 }
 
@@ -91,6 +100,7 @@ export async function updateStatus(req, res, next) {
     try {
         const { orderId, status } = req.body;
 
+        // 1️⃣ Validate input
         if (!orderId || !status) {
             return res.status(400).json({
                 success: false,
@@ -98,7 +108,11 @@ export async function updateStatus(req, res, next) {
             });
         }
 
-        const order = await orderModel.findById(orderId);
+        // 2️⃣ Find order + user email
+        const order = await orderModel
+            .findById(orderId)
+            .populate("userId", "email");
+
         if (!order) {
             return res.status(404).json({
                 success: false,
@@ -106,26 +120,38 @@ export async function updateStatus(req, res, next) {
             });
         }
 
-        const allowedNextStatus = statusFlow[order.orderStatus];
+        // 3️⃣ Validate status transition
+        const currentStatus = order.orderStatus;
+        const allowedNextStatus = statusFlow[currentStatus];
 
-        if (!allowedNextStatus.includes(status)) {
+        if (!allowedNextStatus || !allowedNextStatus.includes(status)) {
             return res.status(400).json({
                 success: false,
-                message: `Cannot change status from ${order.orderStatus} to ${status}`
+                message: `Cannot change status from ${currentStatus} to ${status}`
             });
         }
 
+        // 4️⃣ Update status
         order.orderStatus = status;
         await order.save();
 
-        res.json({
+        // 5️⃣ Send email (async, non-blocking)
+        sendOrderStatusMail({
+            userEmail: order.userId.email,
+            orderId: order._id,
+            oldStatus: currentStatus,
+            newStatus: status
+        }).catch(console.error);
+
+        // 6️⃣ Response
+        res.status(200).json({
             success: true,
-            message: "Order status updated",
+            message: "Order status updated successfully",
             order
         });
 
     } catch (err) {
-        next(err)
+        next(err);
     }
 }
 
@@ -191,7 +217,7 @@ export async function getShopOrders(req, res, next) {
         }
 
         const orders = await orderModel.find({ shopId: shopData._id }).lean()
-            .populate({ path: "userId", select: "name email phone" })
+            .populate({ path: "userId", select: "name email phone address" })
             .populate({
                 path: "items.productId",
                 model: "Product",

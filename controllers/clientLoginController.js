@@ -17,6 +17,7 @@ import { userPasswordValidation } from "../validations/userValidation.js";
 import { sendOtpSchema, verifyOtpSchema } from "../validations/otpValidation.js";
 import { otpModel } from "../models/OTPModel.js"
 import { sendOtpMail } from "../utils/otp.js";
+import { sendOtpService, varifyOtpService } from "../services/otpServise.js";
 // import { registrationService, loginService, logoutService } from "../services/"; // Adjust path
 
 // Helper to handle Zod errors clearly
@@ -360,11 +361,9 @@ export async function addPortfolioImagesController(req, res, next) {
     try {
         const clientId = req.user.id;
         const shopId = await ShopModel.findOne({ clientId })
-        console.log("Body:", req.body);
 
         const file = req.file; // ✅ SINGLE FILE
         const { title, price, unitType, unitValue, category } = req.body;
-        console.log(file);
         // 1️⃣ Validation
         if (!file) {
             return res.status(400).json({ success: false, error: "Product image is required" });
@@ -606,7 +605,6 @@ export async function updateProductController(req, res, next) {
 
 export const sendOtp = async (req, res, next) => {
     try {
-        console.log(req.body);
         const result = sendOtpSchema.safeParse(req.body);
 
         if (!result.success) return res.status(400).json({ err: result.error.errors });
@@ -615,21 +613,11 @@ export const sendOtp = async (req, res, next) => {
         if (!email) {
             return res.status(400).json({ error: "invalid email" })
         }
+        const { success, message, status } = await sendOtpService(email)
+        if (success) {
+            return res.status(status).json({ success: true, message })
+        }
 
-        // Generate 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-        // Save OTP to DB (replace old OTP if exists)
-        await otpModel.findOneAndUpdate(
-            { email },
-            { otp, createdAt: new Date() },
-            { upsert: true, new: true }
-        ).lean();
-
-        // Send OTP mail
-        await sendOtpMail(email.toLowerCase(), otp);
-
-        return res.status(200).json({ message: "If the email is registered, OTP has been sent" });
     } catch (error) {
         next(error)
     }
@@ -652,13 +640,11 @@ export const varifyOtp = async (req, res, next) => {
             return res.status(400).json({ message: "Invalid OTP" });
         }
 
-        const clientData = await ClientModel.findOne({ email })
-        clientData.isVerified = true
-        clientData.save()
-        // ✅ OTP is correct → delete from DB to prevent reuse
-        await otpModel.deleteOne({ email });
-
-        return res.status(200).json({ message: "OTP verified successfully" });
+        const { success, status, message, error } = await varifyOtpService(ClientModel, email)
+        if (success) {
+            return res.status(status).json({ success: true, message });
+        }
+        return res.status(status).json({ success: false, error })
     } catch (error) {
         next(error)
     }

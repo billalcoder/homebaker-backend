@@ -12,6 +12,9 @@ import {
     userUpdateValidation,
     userPasswordValidation
 } from "../validations/userValidation.js";
+import { sendOtpSchema, verifyOtpSchema } from "../validations/otpValidation.js";
+import { sendOtpService, varifyOtpService } from "../services/otpServise.js";
+import { otpModel } from "../models/OTPModel.js";
 
 export async function loginController(req, res, next) {
     try {
@@ -27,7 +30,7 @@ export async function loginController(req, res, next) {
 
         // 2. Call Service
         // FIX: Destructure 'error', NOT 'err' (The service returns 'error')
-        const { error, sessionId, statusCode } = await loginService(validation.data, userModel ,"User");
+        const { error, sessionId, statusCode } = await loginService(validation.data, userModel, "User");
 
         // 3. Check Service Error
         if (error) {
@@ -131,7 +134,7 @@ export async function updateUserProfile(req, res) {
 export async function updateUserPassword(req, res) {
     try {
         const parsed = userPasswordValidation.safeParse(req.body);
-        
+
         if (!parsed.success) {
             return res.status(400).json({
                 success: false,
@@ -154,8 +157,55 @@ export async function updateUserPassword(req, res) {
 
         res.status(err.status || 500).json({
             success: false,
-            message: err.message || "Something went wrong"  
+            message: err.message || "Something went wrong"
         });
+    }
+}
+
+export const sendOtp = async (req, res, next) => {
+    try {
+        const result = sendOtpSchema.safeParse(req.body);
+
+        if (!result.success) return res.status(400).json({ err: result.error.errors });
+        const data = result.data
+        const email = data?.email.toLowerCase()
+        if (!email) {
+            return res.status(400).json({ error: "invalid email" })
+        }
+        const { success, message, status } = await sendOtpService(email)
+        if (success) {
+            return res.status(status).json({ success: true, message })
+        }
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const varifyOtp = async (req, res, next) => {
+    try {
+        const result = verifyOtpSchema.safeParse(req.body);
+        if (!result.success) return res.status(400).json({ err: result.error.errors });
+        const { email, otp } = result.data
+
+        // Find OTP from DB
+        const record = await otpModel.findOne({ email }).lean();
+
+        if (!record) {
+            return res.status(400).json({ message: "OTP expired or not found" });
+        }
+
+        if (record.otp !== otp) {
+            return res.status(400).json({ message: "Invalid OTP" });
+        }
+
+        const { success, status, message, error } = await varifyOtpService(userModel, email)
+        if (success) {
+            return res.status(status).json({ success: true, message });
+        }
+        return res.status(status).json({ success: false, error })
+    } catch (error) {
+        next(error)
     }
 }
 

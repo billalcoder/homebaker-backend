@@ -19,9 +19,6 @@ export async function registrationService(cleanData, model) {
             return { error: "Please accept the terms and conditions" };
         }
 
-        // Hash password
-        // cleanData.password = await bcrypt.hash(cleanData.password, 10);
-
         // Create user
         await model.create(cleanData);
 

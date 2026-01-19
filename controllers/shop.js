@@ -43,6 +43,7 @@ export async function getShop(req, res, next) {
             ]
           },
           distanceField: "distance",
+          maxDistance: 12000,
           spherical: true
         }
       },
@@ -174,7 +175,7 @@ export async function getProductById(req, res, next) {
       });
     }
 
-    const product = await ProductModel.findById(id);
+    const product = await ProductModel.findById(id).populate("shopId", "portfolio");
 
     if (!product) {
       return res.status(404).json({

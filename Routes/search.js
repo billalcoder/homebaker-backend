@@ -38,7 +38,7 @@ router.get("/", async (req, res) => {
           },
           distanceField: "distance",
           spherical: true,
-          maxDistance: 10000, // 10 KM
+          maxDistance: 12000, // 10 KM
           distanceMultiplier: 0.001
         }
       },
@@ -91,6 +91,8 @@ router.get("/", async (req, res) => {
           productName: "$product.productName",
           price: "$product.price",
           images: "$product.images",
+          unitType: "$product.unitType",
+          unitValue: "$product.unitValue",
           shopId: {
             _id: "$shop._id",
             shopName: "$shop.shopName"

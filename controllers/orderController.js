@@ -4,22 +4,83 @@ import { ProductModel } from "../models/ProductModel.js";
 import { productIdValidation } from "../validations/productValidation.js";
 import { ShopModel } from "../models/ShopModel.js";
 import { sendNewOrderAlertMail, sendOrderStatusMail } from "../utils/otp.js";
+import { orderValidation } from "../validations/orderValidation.js";
 
 export async function createOrder(req, res, next) {
     try {
         const userdata = req.user;
-        // 1️⃣ Validate input
-        const dirtyData = productIdValidation.safeParse(req.body);
-        if (!dirtyData.success) {
+
+        // 1️⃣ Validate input using the NEW Zod Schema
+        // This validates: shopId, items (optional), customization (optional)
+        const validation = orderValidation.safeParse(req.body);
+
+        if (!validation.success) {
             return res.status(400).json({
                 success: false,
-                error: dirtyData.error
+                error: validation.error.format() // .format() makes errors easier to read
             });
         }
 
-        const { productId, quantity } = dirtyData.data;
+        const { shopId, items, customization } = validation.data;
 
-        // 2️⃣ Prevent duplicate active order
+        // ============================================================
+        // 🟧 SCENARIO A: CUSTOM ORDER REQUEST
+        // ============================================================
+        if (customization && Object.keys(customization).length > 0) {
+
+            // 1. Verify Shop Exists
+            const shopData = await ShopModel.findById(shopId).populate("clientId", "name email");
+            if (!shopData) {
+                return res.status(404).json({ success: false, message: "Shop not found" });
+            }
+
+            // 2. Create the Custom Order
+            const newOrder = await orderModel.create({
+                userId: userdata._id,
+                shopId: shopId,
+                items: [], // Empty items for custom request
+                customization: customization,
+                totalAmount: 0, // Price is TBD (To Be Decided) by baker
+                orderStatus: "pending",
+                paymentStatus: "pending"
+            });
+
+            // 3. Send Email to Baker (Custom Message)
+            if (shopData.ownerId) {
+                sendNewOrderAlertMail({
+                    bakerEmail: shopData.ownerId.email,
+                    bakerName: shopData.ownerId.name,
+                    shopName: shopData.shopName,
+                    orderId: newOrder._id,
+                    productName: `Custom Request: ${customization.theme} Cake`,
+                    quantity: 1,
+                    totalAmount: "Pending Quote",
+                    type: "CUSTOM" // You might need to update your mailer to handle this flag
+                }).catch(console.error);
+            }
+
+            return res.status(201).json({
+                success: true,
+                message: "Custom request sent successfully",
+                data: newOrder
+            });
+        }
+
+        // ============================================================
+        // 🟦 SCENARIO B: STANDARD PRODUCT ORDER
+        // ============================================================
+
+        // Ensure there is at least one item
+        if (!items || items.length === 0) {
+            return res.status(400).json({ success: false, message: "Order must contain items or customization" });
+        }
+
+        // For now, let's handle the first item (since your UI logic seemed to handle single buy)
+        // If you want a full cart checkout later, loop through 'items'
+        const targetItem = items[0];
+        const { productId, quantity } = targetItem;
+
+        // 1. Prevent duplicate active order for this specific product
         const existingOrder = await orderModel.findOne({
             userId: userdata._id,
             orderStatus: "pending",
@@ -29,38 +90,39 @@ export async function createOrder(req, res, next) {
         if (existingOrder) {
             return res.status(409).json({
                 success: false,
-                message: "You already have an active order for this product"
+                message: "You already have an active pending order for this product"
             });
         }
 
-        // 3️⃣ Fetch product + baker
+        // 2. Fetch product details (Source of Truth for Price)
         const productData = await ProductModel.findById(productId)
             .populate("shopId", "shopName")
             .populate("clientId", "name email phone");
 
         if (!productData) {
-            return res.status(404).json({
-                success: false,
-                error: "Product not found"
-            });
+            return res.status(404).json({ success: false, message: "Product not found" });
         }
 
-        // 4️⃣ Create order
+        // 3. Create Standard Order
         const order = await orderModel.create({
             shopId: productData.shopId._id,
             userId: userdata._id,
-            items: [{ productId, price: productData.price, quantity }],
+            items: [{
+                productId: productData._id,
+                price: productData.price, // Always take price from DB, not frontend
+                quantity
+            }],
             totalAmount: productData.price * quantity,
             orderStatus: "pending"
         });
 
-        // 5️⃣ Increase shop order count
+        // 4. Increase shop order count
         await ShopModel.findByIdAndUpdate(
             productData.shopId._id,
             { $inc: { totalOrder: 1 } }
         );
 
-        // 6️⃣ Send email to baker (NON-BLOCKING)
+        // 5. Send Email
         sendNewOrderAlertMail({
             bakerEmail: productData.clientId.email,
             bakerName: productData.clientId.name,
@@ -71,7 +133,7 @@ export async function createOrder(req, res, next) {
             totalAmount: order.totalAmount
         }).catch(console.error);
 
-        // 7️⃣ Populate response
+        // 6. Return populated response
         const populatedOrder = await orderModel
             .findById(order._id)
             .populate("shopId")
@@ -83,7 +145,7 @@ export async function createOrder(req, res, next) {
         });
 
     } catch (err) {
-        console.error(err);
+        console.error("Create Order Error:", err);
         next(err);
     }
 }
@@ -195,15 +257,49 @@ export async function getMyOrders(req, res, next) {
     try {
         const user = req.user;
 
+        // 1. Fetch Orders with robust population
         const orders = await orderModel.find({ userId: user._id })
-            .populate({ path: "shopId", select: "shopName" }).populate({ path: "items.productId" })
+            // A. Populate Shop & Owner Details (to get the phone number initially)
+            .populate({
+                path: "shopId",
+                select: "shopName clientId",
+                populate: {
+                    path: "clientId",
+                    select: "name phone" // choose required fields
+                } // Fetch Shop Name + Shop Phone
+            })
+            // B. Populate Products (Logic handles empty items array automatically)
+            .populate({
+                path: "items.productId",
+                select: "productName price images unitType unitValue"
+            })
             .select("-__v")
             .sort({ createdAt: -1 });
 
-        res.json({ success: true, data: orders });
+        // 2. Sanitize Data (Privacy Filter)
+        const sanitizedOrders = orders.map(doc => {
+            // Convert Mongoose Document -> Plain JS Object so we can 'delete' fields
+            const order = doc.toObject();
+
+            // 🔒 PRIVACY LOGIC: Hide contact info if not delivered
+            if (order.orderStatus !== 'delivered') {
+
+                if (order.shopId) {
+                    // Hide Shop's generic phone number
+                    if (order.shopId.clientId.phone) {
+                        delete order.shopId.clientId.phone;
+                    }
+                }
+            }
+
+            return order;
+        });
+
+        res.json({ success: true, data: sanitizedOrders });
+
     } catch (err) {
-        console.error(err);
-        next(err)
+        console.error("Error fetching orders:", err);
+        next(err);
     }
 }
 

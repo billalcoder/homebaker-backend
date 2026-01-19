@@ -19,14 +19,21 @@ const orderSchema = new mongoose.Schema(
         productId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Product",
-          required: true
+          required: false
         },
-        quantity: { type: Number, default : 1 },
-        price: { type: Number, required: true }
+        quantity: { type: Number, default: 1 },
+        price: { type: Number, required: false }
       }
-    ], 
+    ],
 
-    totalAmount: { type: Number, required: true },
+    customization: {
+      weight: { type: String }, // e.g., "1kg", "2kg"
+      flavor: { type: String }, // e.g., "Chocolate"
+      theme: { type: String },  // e.g., "Birthday"
+      notes: { type: String }   // e.g., "Write 'Happy Birthday John'"
+    },
+
+    totalAmount: { type: Number, required: true, default: 0 },
 
     paymentStatus: {
       type: String,

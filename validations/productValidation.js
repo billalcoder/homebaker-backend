@@ -44,11 +44,9 @@ export const productValidation = z.object({
   }),
 
   unitValue: z
-    .number({
+    .string({
       required_error: "Unit value is required",
-      invalid_type_error: "Unit value must be a number",
-    })
-    .min(1, "Unit value must be at least 1"),
+    }),
 
   category: z
     .enum([

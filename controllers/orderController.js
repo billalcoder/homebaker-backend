@@ -9,76 +9,73 @@ import { orderValidation } from "../validations/orderValidation.js";
 export async function createOrder(req, res, next) {
     try {
         const userdata = req.user;
+        const { productId } = req.body
 
-        // 1️⃣ Validate input using the NEW Zod Schema
-        // This validates: shopId, items (optional), customization (optional)
-        const validation = orderValidation.safeParse(req.body);
+        if (!productId) {
+            const validation = orderValidation.safeParse(req.body);
 
-        if (!validation.success) {
-            return res.status(400).json({
-                success: false,
-                error: validation.error.format() // .format() makes errors easier to read
-            });
-        }
-
-        const { shopId, items, customization } = validation.data;
-
-        // ============================================================
-        // 🟧 SCENARIO A: CUSTOM ORDER REQUEST
-        // ============================================================
-        if (customization && Object.keys(customization).length > 0) {
-
-            // 1. Verify Shop Exists
-            const shopData = await ShopModel.findById(shopId).populate("clientId", "name email");
-            if (!shopData) {
-                return res.status(404).json({ success: false, message: "Shop not found" });
+            if (!validation.success) {
+                return res.status(400).json({
+                    success: false,
+                    error: validation.error.format() // .format() makes errors easier to read
+                });
             }
 
-            // 2. Create the Custom Order
-            const newOrder = await orderModel.create({
-                userId: userdata._id,
-                shopId: shopId,
-                items: [], // Empty items for custom request
-                customization: customization,
-                totalAmount: 0, // Price is TBD (To Be Decided) by baker
-                orderStatus: "pending",
-                paymentStatus: "pending"
-            });
+            const { shopId, items, customization } = validation.data;
+            // ============================================================
+            // 🟧 SCENARIO A: CUSTOM ORDER REQUEST
+            // ============================================================
+            if (customization && Object.keys(customization).length > 0) {
 
-            // 3. Send Email to Baker (Custom Message)
-            if (shopData.ownerId) {
-                sendNewOrderAlertMail({
-                    bakerEmail: shopData.ownerId.email,
-                    bakerName: shopData.ownerId.name,
-                    shopName: shopData.shopName,
-                    orderId: newOrder._id,
-                    productName: `Custom Request: ${customization.theme} Cake`,
-                    quantity: 1,
-                    totalAmount: "Pending Quote",
-                    type: "CUSTOM" // You might need to update your mailer to handle this flag
-                }).catch(console.error);
+                // 1. Verify Shop Exists
+                const shopData = await ShopModel.findById(shopId).populate("clientId", "name email");
+                if (!shopData) {
+                    return res.status(404).json({ success: false, message: "Shop not found" });
+                }
+
+                // 2. Create the Custom Order
+                const newOrder = await orderModel.create({
+                    userId: userdata._id,
+                    shopId: shopId,
+                    items: [], // Empty items for custom request
+                    customization: customization,
+                    totalAmount: 0, // Price is TBD (To Be Decided) by baker
+                    orderStatus: "pending",
+                    paymentStatus: "pending"
+                });
+
+                // 3. Send Email to Baker (Custom Message)
+                if (shopData.ownerId) {
+                    sendNewOrderAlertMail({
+                        bakerEmail: shopData.ownerId.email,
+                        bakerName: shopData.ownerId.name,
+                        shopName: shopData.shopName,
+                        orderId: newOrder._id,
+                        productName: `Custom Request: ${customization.theme} Cake`,
+                        quantity: 1,
+                        totalAmount: "Pending Quote",
+                        type: "CUSTOM" // You might need to update your mailer to handle this flag
+                    }).catch(console.error);
+                }
+
+                return res.status(201).json({
+                    success: true,
+                    message: "Custom request sent successfully",
+                    data: newOrder
+                });
             }
-
-            return res.status(201).json({
-                success: true,
-                message: "Custom request sent successfully",
-                data: newOrder
-            });
         }
 
         // ============================================================
         // 🟦 SCENARIO B: STANDARD PRODUCT ORDER
         // ============================================================
 
-        // Ensure there is at least one item
-        if (!items || items.length === 0) {
-            return res.status(400).json({ success: false, message: "Order must contain items or customization" });
-        }
+
 
         // For now, let's handle the first item (since your UI logic seemed to handle single buy)
         // If you want a full cart checkout later, loop through 'items'
-        const targetItem = items[0];
-        const { productId, quantity } = targetItem;
+        // const targetItem = items[0];
+        // const { productId, quantity } = targetItem;
 
         // 1. Prevent duplicate active order for this specific product
         const existingOrder = await orderModel.findOne({
@@ -110,9 +107,8 @@ export async function createOrder(req, res, next) {
             items: [{
                 productId: productData._id,
                 price: productData.price, // Always take price from DB, not frontend
-                quantity
             }],
-            totalAmount: productData.price * quantity,
+            totalAmount: productData.price,
             orderStatus: "pending"
         });
 
@@ -129,7 +125,6 @@ export async function createOrder(req, res, next) {
             shopName: productData.shopId.shopName,
             orderId: order._id,
             productName: productData.productName,
-            quantity,
             totalAmount: order.totalAmount
         }).catch(console.error);
 
@@ -282,7 +277,7 @@ export async function getMyOrders(req, res, next) {
             const order = doc.toObject();
 
             // 🔒 PRIVACY LOGIC: Hide contact info if not delivered
-            if (order.orderStatus !== 'delivered') {
+            if (order.orderStatus !== 'preparing' &&  order.orderStatus !== 'on-the-way') {
 
                 if (order.shopId) {
                     // Hide Shop's generic phone number
@@ -312,14 +307,15 @@ export async function getShopOrders(req, res, next) {
             return res.status(403).json({ success: false, error: "Only shop owners can access this" });
         }
 
-        const orders = await orderModel.find({ shopId: shopData._id }).lean()
-            .populate({ path: "userId", select: "name email phone address" })
+        const orders = await orderModel.find({ shopId: shopData._id })
+            .populate({ path: "userId", select: "name email address" })
             .populate({
                 path: "items.productId",
                 model: "Product",
                 select: "productName images"
             })
             .sort({ createdAt: -1 });
+
         res.json({ success: true, length: orders.length, data: orders });
     } catch (err) {
         console.error(err);

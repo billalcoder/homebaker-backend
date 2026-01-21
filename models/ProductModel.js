@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { string } from "zod";
 
 const productSchema = new mongoose.Schema(
   {
@@ -52,9 +53,8 @@ const productSchema = new mongoose.Schema(
     },
 
     unitValue: {
-      type: Number,
+      type: String,
       required: true,
-      min: 1
     },
 
     category: {

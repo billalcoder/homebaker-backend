@@ -438,7 +438,7 @@ export async function addPortfolioImagesController(req, res, next) {
 export async function addProductData(req, res, next) {
     try {
         const clientId = req.user._id;
-
+        console.log(req.body);
         // 1. FIND THE SHOP
         const shop = await ShopModel.findOne({ clientId }).lean();
 
@@ -453,7 +453,7 @@ export async function addProductData(req, res, next) {
             ...req.body,
             price: Number(req.body.price),
             stock: req.body.stock ? Number(req.body.stock) : 10,
-            unitValue: req.body.unitValue ? Number(req.body.unitValue) : 1,
+            unitValue: req.body.unitValue,
             unitType: req.body.unitType,
             shopId: shop._id.toString(),
             clientId: clientId.toString(),

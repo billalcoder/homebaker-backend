@@ -95,6 +95,8 @@ app.use("/review", review)
 
 app.use("/search", searchRoutes);
 
+// app.use("/admin" , admin)
+
 app.use(errorHandler)
 
 if (process.env.NODE_ENV !== "test") {

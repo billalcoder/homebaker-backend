@@ -438,7 +438,17 @@ export async function addPortfolioImagesController(req, res, next) {
 export async function addProductData(req, res, next) {
     try {
         const clientId = req.user._id;
-        console.log(req.body);
+        if (req.query.testError === "true") {
+            return res.status(400).json({
+                error: "TEST ERROR: Conditional backend error"
+            });
+        }
+
+        if (!clientId) {
+            return res.status(404).json({
+                error: "Login first"
+            });
+        }
         // 1. FIND THE SHOP
         const shop = await ShopModel.findOne({ clientId }).lean();
 

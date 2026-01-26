@@ -277,7 +277,7 @@ export async function getMyOrders(req, res, next) {
             const order = doc.toObject();
 
             // 🔒 PRIVACY LOGIC: Hide contact info if not delivered
-            if (order.orderStatus !== 'preparing' &&  order.orderStatus !== 'on-the-way') {
+            if (order.orderStatus !== 'preparing' && order.orderStatus !== 'on-the-way') {
 
                 if (order.shopId) {
                     // Hide Shop's generic phone number
@@ -373,6 +373,66 @@ export async function deleteOrder(req, res, next) {
         console.error(err);
         next(err)
     }
+}
+
+export const cancelOrder = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { orderId } = req.params;
+
+        const order = await orderModel.findOne({
+            _id: orderId,
+            userId
+        });
+
+        if (!order) {
+            return res.status(404).json({
+                error: "Order not found"
+            });
+        }
+
+        // ❌ Only preparing orders can be cancelled
+        if (order.orderStatus !== "preparing") {
+            return res.status(400).json({
+                error: "Order cannot be cancelled at this stage"
+            });
+        }
+
+        // ⏰ Time check (1 hour)
+        const ONE_HOUR = 60 * 60 * 1000;
+        const orderTime = new Date(order.createdAt).getTime();
+        const now = Date.now();
+
+        if (now - orderTime > ONE_HOUR) {
+            return res.status(400).json({
+                error: "Cancellation window expired"
+            });
+        }
+
+        // ✅ Cancel order
+        order.orderStatus = "cancelled";
+        await order.save();
+
+        return res.json({
+            success: true,
+            message: "Order cancelled successfully"
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updatePrice = async (req, res, next) => {
+    const { orderId, totalAmount } = req.body
+    const userId = req.user._id
+    console.log(userId);
+    const order = await orderModel.findById(orderId)
+    console.log(order);
+    order.totalAmount = totalAmount
+    order.save()
+    res.status(201).json({ success: true, message: "price updated successfully" })
+
 }
 
 // export async function getOrderById(req, res) {

@@ -79,7 +79,14 @@ const shopSchema = new mongoose.Schema(
     },
 
     totalOrder: { type: Number, default: 1 },
-
+    status: {
+      type: String,
+      enum: [
+        "active",
+        "inactive"
+      ],
+      default: "inactive"
+    },
     isActive: { type: Boolean, default: true } // Admin can ban/suspend
   },
   { timestamps: true }

@@ -42,10 +42,15 @@ export const shopValidation = z.object({
         "Others",
       ])
       .default("Others"),
-      
+
     unitType: z.enum(["kg", "quantity"], {
       required_error: "Unit type is required",
     }),
+
+    status: z.enum([
+      "active",
+      "inactive"
+    ]),
 
     unitValue: z
       .number({
@@ -53,7 +58,7 @@ export const shopValidation = z.object({
         invalid_type_error: "Unit value must be a number",
       })
       .min(1, "Unit value must be at least 1"),
-      
+
     price: z.string().min(1, "Price should be positive").optional().transform((val) => (val ? stripTags(val) : ""))
   })).optional().transform((val) => (val ? stripTags(val) : "")),
 

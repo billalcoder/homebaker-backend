@@ -28,6 +28,7 @@ const subscriptionSchema = new mongoose.Schema({
         enum: [
             "created",
             "authenticated",
+            "paused",
             "active",
             "pending",
             "halted",
@@ -35,12 +36,6 @@ const subscriptionSchema = new mongoose.Schema({
             "cancelled"
         ],
         default: "created"
-    },
-
-    short_status: {
-        type: String,
-        enum: ["ongoing", "expired", "cancelled"],
-        default: "ongoing"
     },
 
     current_start: { type: Number }, // timestamp

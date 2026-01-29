@@ -44,7 +44,51 @@ router.delete("/users/:id", async (req, res) => {
 // --- 🏪 CLIENTS ---
 router.get("/clients", async (req, res) => {
     try {
-        const clients = await ClientModel.find().select("-password");
+        const clients = await ClientModel.aggregate([
+            // 1. Join Products (To get Count)
+            {
+                $lookup: {
+                    from: "products", 
+                    localField: "_id",
+                    foreignField: "clientId",
+                    as: "products"
+                }
+            },
+            // 2. Join Shops (To get Shop Name)
+            {
+                $lookup: {
+                    from: "shops", // The collection name for ShopModel (usually lowercase plural)
+                    localField: "_id",
+                    foreignField: "clientId",
+                    as: "shopInfo"
+                }
+            },
+            // 3. Unwind Shop Info (Convert array to object)
+            {
+                $unwind: {
+                    path: "$shopInfo",
+                    preserveNullAndEmptyArrays: true // Keep client even if they haven't created a shop yet
+                }
+            },
+            // 4. Add Fields (Count & Shop Name)
+            {
+                $addFields: {
+                    productCount: { $size: "$products" },
+                    shopName: "$shopInfo.shopName",
+                    profileImage : "$shopInfo.profileImage", // Extract shopName to the top level
+                    coverImage : "$shopInfo.coverImage", // Extract shopName to the top level
+                    shopDescription : "$shopInfo.shopDescription", // Extract shopName to the top level
+                }
+            },
+            // 5. Final Projection (Cleanup)
+            {
+                $project: {
+                    password: 0,
+                    products: 0,  // Remove heavy product list
+                    shopInfo: 0   // Remove the full shop object (we only needed the name)
+                }
+            }
+        ]);
         res.json(clients);
     } catch (error) {
         res.status(500).json({ error: error.message });

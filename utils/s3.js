@@ -2,7 +2,6 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client
 import crypto from "crypto";
 import path from "path"; // <--- Import this standard Node module
 
-
 const s3 = new S3Client({
     region: process.env.AWS_REGION,
     credentials: {

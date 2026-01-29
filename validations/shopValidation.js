@@ -50,7 +50,7 @@ export const shopValidation = z.object({
     status: z.enum([
       "active",
       "inactive"
-    ]),
+    ]).default("inactive"),
 
     unitValue: z
       .number({

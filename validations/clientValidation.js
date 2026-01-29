@@ -16,6 +16,8 @@ export const clientValidation = z.object({
     .optional()
     .or(z.literal("")),
 
+  role: z.enum(["user", "admin"]),
+
   password: z
     .string()
     .trim()
@@ -42,13 +44,13 @@ export const clientValidation = z.object({
     ])
   })
 })
-.refine(
-  (data) => data.email || data.phone,
-  {
-    message: "Either email or phone is required",
-    path: ["email"], // error will appear near email field
-  }
-);
+  .refine(
+    (data) => data.email || data.phone,
+    {
+      message: "Either email or phone is required",
+      path: ["email"], // error will appear near email field
+    }
+  );
 
 // export const clientProfileUpdateValidation = z.object({
 //   shopName: z.string().min(2).optional(),

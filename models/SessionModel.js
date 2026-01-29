@@ -7,6 +7,11 @@ const sessionSchema = new mongoose.Schema({
     required: true,
     enum: ["Client", "User"]
   },
+  role: {
+    type: String,
+    enum: ["user", "admin"],
+    default: "user"
+  },
   expireAt: { type: Date, required: true }
 });
 

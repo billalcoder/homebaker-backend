@@ -16,6 +16,9 @@ import review from "./Routes/review.js"
 import searchRoutes from "./Routes/search.js"
 import { errorHandler } from "./middlewares/errorHandler.js"
 import { ErrorLog } from "./models/errorlog.js"
+import admin from "./Routes/adminRoutes.js"
+import { userSession } from "./middlewares/authmiddlewere.js"
+import { verifyAdmin } from "./middlewares/adminAuth.js"
 const app = express()
 
 app.use(express.json({ limit: '50kb' }))
@@ -95,7 +98,7 @@ app.use("/review", review)
 
 app.use("/search", searchRoutes);
 
-// app.use("/admin" , admin)
+app.use("/admin" , userSession , verifyAdmin , admin)
 
 app.use(errorHandler)
 

@@ -4,65 +4,10 @@ import { AdminModel } from "../models/admin.js";
 import { userModel } from "../models/UserModel.js";
 import { ClientModel } from "../models/ClientModel.js";
 import { ProductModel } from "../models/ProductModel.js";
-import { verifyAdmin } from "../middleware/adminAuth.js";
+import { verifyAdmin } from "../middlewares/adminAuth.js";
+import { deleteFromS3 } from "../utils/s3.js"; // 👈 IMPORT THIS
 
 const router = express.Router();
-
-// ==========================================
-// 🔓 PUBLIC ROUTES (Login / Seed)
-// ==========================================
-
-// 1. Admin Login (Session Based)
-router.post("/login", async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const admin = await AdminModel.findOne({ email });
-        
-        if (!admin) return res.status(404).json({ message: "Admin not found" });
-
-        const isMatch = await bcrypt.compare(password, admin.password);
-        if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
-
-        // ✅ SET SESSION
-        req.session.adminId = admin._id;
-        req.session.role = admin.role;
-        req.session.isAdmin = true;
-
-        // Force save to ensure session is written before response
-        req.session.save(err => {
-            if(err) return res.status(500).json({message: "Session Error"});
-            res.json({ message: "Login successful", role: admin.role });
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// 2. Admin Logout
-router.post("/logout", (req, res) => {
-    req.session.destroy((err) => {
-        if (err) return res.status(500).json({ message: "Could not log out" });
-        res.clearCookie("connect.sid"); // Default cookie name
-        res.json({ message: "Logout successful" });
-    });
-});
-
-// 3. Seed Admin (Use once then delete/protect)
-router.post("/create-seed", async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        // Simple check to prevent re-seeding if admin exists (optional)
-        const exists = await AdminModel.findOne({ email });
-        if(exists) return res.status(400).json({ message: "Admin already exists" });
-
-        const newAdmin = new AdminModel({ email, password });
-        await newAdmin.save();
-        res.status(201).json({ message: "Admin created" });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
 
 // ==========================================
 // 🛡️ PROTECTED ROUTES (Requires Session)
@@ -81,8 +26,16 @@ router.get("/users", async (req, res) => {
 
 router.delete("/users/:id", async (req, res) => {
     try {
+        const user = await userModel.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        // 🗑️ Delete User Image if it exists
+        if (user.profileImage) {
+            await deleteFromS3(user.profileImage);
+        }
+
         await userModel.findByIdAndDelete(req.params.id);
-        res.json({ message: "User deleted" });
+        res.json({ message: "User and associated files deleted" });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -111,12 +64,47 @@ router.patch("/clients/:id/verify", async (req, res) => {
     }
 });
 
+// 🔥 UPDATED: Delete Client + All S3 Images (Profile, Cover, Portfolio, Products)
 router.delete("/clients/:id", async (req, res) => {
     try {
-        await ProductModel.deleteMany({ clientId: req.params.id });
-        await ClientModel.findByIdAndDelete(req.params.id);
-        res.json({ message: "Client and products deleted" });
+        const clientId = req.params.id;
+
+        // 1. Fetch Client Data
+        const client = await ClientModel.findById(clientId);
+        if (!client) return res.status(404).json({ message: "Client not found" });
+
+        // 🗑️ Delete Shop Profile & Cover Images
+        if (client.profileImage) await deleteFromS3(client.profileImage);
+        if (client.coverImage) await deleteFromS3(client.coverImage);
+
+        // 🗑️ Delete Portfolio Images
+        if (client.portfolio && client.portfolio.length > 0) {
+            // Using Promise.all for faster parallel deletion
+            await Promise.all(client.portfolio.map(async (item) => {
+                if (item.imageUrl) await deleteFromS3(item.imageUrl);
+            }));
+        }
+
+        // 2. Fetch & Delete All Products Images
+        const products = await ProductModel.find({ clientId: clientId });
+        
+        if (products.length > 0) {
+            for (const product of products) {
+                if (product.images && product.images.length > 0) {
+                    await Promise.all(product.images.map(async (imgUrl) => {
+                        await deleteFromS3(imgUrl);
+                    }));
+                }
+            }
+        }
+
+        // 3. Delete Data from DB
+        await ProductModel.deleteMany({ clientId: clientId });
+        await ClientModel.findByIdAndDelete(clientId);
+
+        res.json({ message: "Client, products, and all S3 images deleted successfully" });
     } catch (error) {
+        console.error("Delete Client Error:", error);
         res.status(500).json({ error: error.message });
     }
 });

@@ -44,52 +44,102 @@ router.delete("/users/:id", async (req, res) => {
 // --- 🏪 CLIENTS ---
 router.get("/clients", async (req, res) => {
     try {
-        const clients = await ClientModel.aggregate([
-            // 1. Join Products (To get Count)
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || "";
+        const skip = (page - 1) * limit;
+
+        // Build Search Query for initial match (Client fields)
+        let matchStage = {};
+        if (search) {
+            const regex = { $regex: search, $options: "i" };
+            matchStage = {
+                $or: [{ name: regex }, { email: regex }]
+            };
+        }
+
+        const pipeline = [
+            // 1. Initial Filter (Name/Email)
+            { $match: matchStage },
+            
+            // 2. Join Products
             {
                 $lookup: {
-                    from: "products", 
+                    from: "products",
                     localField: "_id",
                     foreignField: "clientId",
                     as: "products"
                 }
             },
-            // 2. Join Shops (To get Shop Name)
+            // 3. Join Shops
             {
                 $lookup: {
-                    from: "shops", // The collection name for ShopModel (usually lowercase plural)
+                    from: "shops",
                     localField: "_id",
                     foreignField: "clientId",
                     as: "shopInfo"
                 }
             },
-            // 3. Unwind Shop Info (Convert array to object)
             {
                 $unwind: {
                     path: "$shopInfo",
-                    preserveNullAndEmptyArrays: true // Keep client even if they haven't created a shop yet
+                    preserveNullAndEmptyArrays: true
                 }
             },
-            // 4. Add Fields (Count & Shop Name)
+            // 4. Add Fields
             {
                 $addFields: {
                     productCount: { $size: "$products" },
                     shopName: "$shopInfo.shopName",
-                    profileImage : "$shopInfo.profileImage", // Extract shopName to the top level
-                    coverImage : "$shopInfo.coverImage", // Extract shopName to the top level
-                    shopDescription : "$shopInfo.shopDescription", // Extract shopName to the top level
+                    profileImage: "$shopInfo.profileImage",
+                    coverImage: "$shopInfo.coverImage",
+                    shopDescription: "$shopInfo.shopDescription"
                 }
             },
-            // 5. Final Projection (Cleanup)
+            // 5. Secondary Match (If searching by Shop Name)
+            ...(search ? [{
+                $match: {
+                    $or: [
+                        { name: { $regex: search, $options: "i" } },
+                        { email: { $regex: search, $options: "i" } },
+                        { shopName: { $regex: search, $options: "i" } }
+                    ]
+                }
+            }] : []),
+            
+            // 6. Cleanup
             {
                 $project: {
                     password: 0,
-                    products: 0,  // Remove heavy product list
-                    shopInfo: 0   // Remove the full shop object (we only needed the name)
+                    products: 0,
+                    shopInfo: 0
+                }
+            },
+            // 7. Pagination Facet
+            {
+                $facet: {
+                    metadata: [{ $count: "total" }],
+                    data: [{ $skip: skip }, { $limit: limit }]
                 }
             }
-        ]);
-        res.json(clients);
+        ];
+
+        const result = await ClientModel.aggregate(pipeline);
+        
+        const data = result[0].data;
+        const total = result[0].metadata[0] ? result[0].metadata[0].total : 0;
+
+        res.json({
+            success: true,
+            data,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -156,12 +206,44 @@ router.delete("/clients/:id", async (req, res) => {
 // --- 🍰 PRODUCTS ---
 router.get("/products", async (req, res) => {
     try {
-        const products = await ProductModel.find().populate("clientId", "name email");
-        res.json(products);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || "";
+        const skip = (page - 1) * limit;
+
+        let query = {};
+        if (search) {
+            query = {
+                $or: [
+                    { productName: { $regex: search, $options: "i" } },
+                    { category: { $regex: search, $options: "i" } }
+                ]
+            };
+        }
+
+        const total = await ProductModel.countDocuments(query);
+        
+        const products = await ProductModel.find(query)
+            .populate("clientId", "name email")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        res.json({
+            success: true,
+            data: products,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
+
 
 router.patch("/products/:id/toggle-status", async (req, res) => {
     try {

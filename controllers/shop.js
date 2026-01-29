@@ -7,87 +7,83 @@ import { ClientModel } from "../models/ClientModel.js";
 export async function getShop(req, res, next) {
   try {
     const { latitude, longitude } = req.query;
+    // 1. Parse pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    // ---------------------------------------
-    // 🟡 FALLBACK: NO LOCATION
-    // ---------------------------------------
+    // --- FALLBACK: NO LOCATION ---
     if (!latitude || !longitude) {
+      const total = await ShopModel.countDocuments({ isActive: true });
       const shops = await ShopModel.find({ isActive: true })
         .select("shopName shopDescription shopCategory city coverImage totalReviews")
-        .limit(20);
+        .skip(skip)
+        .limit(limit);
 
-      // 🔥 Normalize response
-      const normalized = shops.map(shop => ({
-        shop,
-        distanceInKm: null
-      }));
+      const normalized = shops.map(shop => ({ shop, distanceInKm: null }));
 
       return res.json({
         success: true,
         count: normalized.length,
+        pagination: { total, page, totalPages: Math.ceil(total / limit) },
         shops: normalized
       });
     }
 
-    // ---------------------------------------
-    // 🟢 WITH LOCATION (Geo Search)
-    // ---------------------------------------
-    const shops = await ClientModel.aggregate([
+    // --- WITH LOCATION (Geo Search) ---
+    // Note: $geoNear must be the first stage. Pagination happens via $skip and $limit.
+    // --- WITH LOCATION (Geo Search) ---
+    const results = await ClientModel.aggregate([
       {
         $geoNear: {
-          near: {
-            type: "Point",
-            coordinates: [
-              parseFloat(longitude),
-              parseFloat(latitude)
-            ]
-          },
+          near: { type: "Point", coordinates: [parseFloat(longitude), parseFloat(latitude)] },
           distanceField: "distance",
           maxDistance: 12000,
           spherical: true
         }
       },
-
-      {
-        $lookup: {
-          from: "shops",
-          localField: "_id",
-          foreignField: "clientId",
-          as: "shop"
-        }
-      },
-
-      {
-        $match: {
-          "shop.0": { $exists: true }
-        }
-      },
-
+      { $lookup: { from: "shops", localField: "_id", foreignField: "clientId", as: "shop" } },
+      { $match: { "shop.0": { $exists: true } } },
       { $unwind: "$shop" },
-
       {
-        $addFields: {
-          distanceInKm: {
-            $round: [{ $divide: ["$distance", 1000] }, 2]
-          }
-        }
-      },
-
-      // 🔥 Normalize shape
-      {
-        $project: {
-          shop: "$shop",
-          distanceInKm: 1
+        $facet: {
+          // Branch 1: Get the actual data
+          data: [
+            { $addFields: { distanceInKm: { $round: [{ $divide: ["$distance", 1000] }, 2] } } },
+            { $project: { shop: "$shop", distanceInKm: 1 } },
+            { $skip: skip },
+            { $limit: limit }
+          ],
+          // Branch 2: Get the total count for pagination
+          totalCount: [
+            { $count: "count" }
+          ]
         }
       }
     ]);
 
+    const shops = results[0].data;
+    const total = results[0].totalCount[0]?.count || 0;
+
     return res.status(200).json({
       success: true,
       count: shops.length,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) // Now this is calculated correctly
+      },
       shops
     });
 
+    // For total count in aggregation, we'd ideally run a separate count or use $facet
+    return res.status(200).json({
+      success: true,
+      count: shops.length,
+      pagination: { page, limit }, // Detailed totalPages requires a facet stage or second query
+      shops
+    });
   } catch (error) {
     next(error);
   }

@@ -511,18 +511,38 @@ export async function addProductData(req, res, next) {
 
 export async function getProduct(req, res, next) {
     try {
-        const user = req.user._id
+        const user = req.user._id;
         if (!user) {
-            return res.status(401).json({ error: "Unauthorize Access" })
+            return res.status(401).json({ error: "Unauthorized Access" });
         }
 
-        const productData = await ProductModel.find({ clientId: user }).lean()
-        if (!productData) {
-            res.status(404).json({ error: "product not found" })
-        }
-        return res.status(200).json({ success: true, data: productData })
+        // 1. Get page and limit from query strings (with defaults)
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // 2. Fetch data and total count in parallel
+        const [productData, totalProducts] = await Promise.all([
+            ProductModel.find({ clientId: user })
+                .sort({ createdAt: -1 }) // Show newest first
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            ProductModel.countDocuments({ clientId: user })
+        ]);
+
+        return res.status(200).json({ 
+            success: true, 
+            data: productData,
+            pagination: {
+                total: totalProducts,
+                page,
+                limit,
+                totalPages: Math.ceil(totalProducts / limit)
+            }
+        });
     } catch (error) {
-        next(error)
+        next(error);
     }
 }
 

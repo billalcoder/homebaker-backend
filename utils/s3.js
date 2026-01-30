@@ -13,10 +13,10 @@ const s3 = new S3Client({
 const randomImageName = (bytes = 32) => crypto.randomBytes(bytes).toString('hex');
 
 export async function uploadToS3(file) {
-    // 1. Get the extension (e.g., '.jpg' or '.png') from the original name
-    const extension = path.extname(file.originalname);
+    // 1. Force lowercase extension to avoid case-sensitivity errors in S3
+    const extension = path.extname(file.originalname).toLowerCase(); 
 
-    // 2. Create name WITH extension (e.g., "a1b2c3d4.jpg")
+    // 2. Create name WITH extension
     const fileName = randomImageName() + extension;
 
     const params = {
@@ -24,20 +24,20 @@ export async function uploadToS3(file) {
         Key: fileName,
         Body: file.buffer,
         ContentType: file.mimetype,
+        // REMOVE any ACL: 'public-read' lines if you had them
     };
 
     const command = new PutObjectCommand(params);
     try {
-        // --- ATTEMPT UPLOAD ---
         console.log(`📤 Sending file to S3: ${fileName}...`);
-        const a = await s3.send(command);
+        await s3.send(command);
         console.log("✅ S3 Upload Success!");
     } catch (error) {
-        // --- CATCH AWS ERROR ---
         console.error("❌ AWS S3 UPLOAD FAILED:", error);
         throw new Error(`S3 Upload Failed: ${error.message}`);
     }
 
+    // Return the CloudFront URL
     return `https://${process.env.AWS_CLOUDFRONT_DOMAIN}/${fileName}`;
 }
 

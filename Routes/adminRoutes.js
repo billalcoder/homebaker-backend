@@ -6,6 +6,8 @@ import { ClientModel } from "../models/ClientModel.js";
 import { ProductModel } from "../models/ProductModel.js";
 import { verifyAdmin } from "../middlewares/adminAuth.js";
 import { deleteFromS3 } from "../utils/s3.js"; // 👈 IMPORT THIS
+import { sessionModel } from "../models/SessionModel.js";
+import { ShopModel } from "../models/ShopModel.js";
 
 const router = express.Router();
 
@@ -163,40 +165,55 @@ router.delete("/clients/:id", async (req, res) => {
     try {
         const clientId = req.params.id;
 
-        // 1. Fetch Client Data
+        // 1. Fetch Client
         const client = await ClientModel.findById(clientId);
         if (!client) return res.status(404).json({ message: "Client not found" });
 
-        // 🗑️ Delete Shop Profile & Cover Images
-        if (client.profileImage) await deleteFromS3(client.profileImage);
-        if (client.coverImage) await deleteFromS3(client.coverImage);
+        // 2. Fetch Associated Shop (Because Portfolio is here!)
+        const shop = await ShopModel.findOne({ clientId: clientId });
 
-        // 🗑️ Delete Portfolio Images
-        if (client.portfolio && client.portfolio.length > 0) {
-            // Using Promise.all for faster parallel deletion
-            await Promise.all(client.portfolio.map(async (item) => {
-                if (item.imageUrl) await deleteFromS3(item.imageUrl);
-            }));
-        }
+        if (shop) {
+            // 🗑️ A. Delete Shop-Specific Images
+            // (Assuming shop has coverImage/profileImage, not client)
+            if (shop.profileImage) await deleteFromS3(shop.profileImage);
+            if (shop.coverImage) await deleteFromS3(shop.coverImage);
 
-        // 2. Fetch & Delete All Products Images
-        const products = await ProductModel.find({ clientId: clientId });
-        
-        if (products.length > 0) {
-            for (const product of products) {
-                if (product.images && product.images.length > 0) {
-                    await Promise.all(product.images.map(async (imgUrl) => {
-                        await deleteFromS3(imgUrl);
-                    }));
-                }
+
+            // 🗑️ C. Fetch & Delete All Products Linked to this SHOP
+            const products = await ProductModel.find({ shopId: shop._id });
+
+            if (products.length > 0) {
+                // Delete product images first
+                await Promise.all(products.map(async (product) => {
+                    if (product.images && product.images.length > 0) {
+                        await Promise.all(product.images.map(imgUrl => deleteFromS3(imgUrl)));
+                    }
+                }));
+
+                // Delete product documents
+                await ProductModel.deleteMany({ shopId: shop._id });
             }
+
+            // 🗑️ D. Delete the Shop Document itself
+            await ShopModel.findByIdAndDelete(shop._id);
         }
 
-        // 3. Delete Data from DB
-        await ProductModel.deleteMany({ clientId: clientId });
+        // 3. Delete The Client Document
         await ClientModel.findByIdAndDelete(clientId);
 
-        res.json({ message: "Client, products, and all S3 images deleted successfully" });
+        // 4. Delete Session (If you store sessions in MongoDB)
+        // Adjust 'sessions' to your actual collection name if different
+        // specific deletion depends on how you store session data (e.g. by user_id or cookie)
+        try {
+            await sessionModel.deleteMany({ userId: clientId });
+            // OR if you use a RefreshToken model:
+            // await RefreshTokenModel.deleteMany({ userId: clientId });
+        } catch (err) {
+            console.warn("Session deletion warning:", err.message);
+        }
+
+        res.json({ message: "Account, Shop, Portfolio, and Products deleted successfully" });
+
     } catch (error) {
         console.error("Delete Client Error:", error);
         res.status(500).json({ error: error.message });

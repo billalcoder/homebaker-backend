@@ -14,7 +14,11 @@ const clientSchema = new mongoose.Schema(
 
         isVerified: { type: Boolean, default: false },
 
-        role: { type: { String, enum: ["user", "admin"] }, default: "user" },
+        role: {
+            type: String,             // Direct reference to the type
+            enum: ["user", "admin"],  // Validator
+            default: "user"           // Default value
+        },
         // ⭐ Add Location (GeoJSON)
         location: {
             type: {

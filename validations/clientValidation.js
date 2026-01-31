@@ -16,7 +16,7 @@ export const clientValidation = z.object({
     .optional()
     .or(z.literal("")),
 
-  role: z.enum(["user", "admin"]),
+  role: z.enum(["user", "admin"]).default("user"),
 
   password: z
     .string()

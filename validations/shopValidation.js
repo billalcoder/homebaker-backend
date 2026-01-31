@@ -61,5 +61,5 @@ export const shopValidation = z.object({
 
     price: z.string().min(1, "Price should be positive").optional().transform((val) => (val ? stripTags(val) : ""))
   })).optional().transform((val) => (val ? stripTags(val) : "")),
-
+  productCount : z.number().default(0)
 });

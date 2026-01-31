@@ -426,9 +426,7 @@ export const cancelOrder = async (req, res, next) => {
 export const updatePrice = async (req, res, next) => {
     const { orderId, totalAmount } = req.body
     const userId = req.user._id
-    console.log(userId);
     const order = await orderModel.findById(orderId)
-    console.log(order);
     order.totalAmount = totalAmount
     order.save()
     res.status(201).json({ success: true, message: "price updated successfully" })

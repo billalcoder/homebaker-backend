@@ -1,6 +1,5 @@
 export const verifyAdmin = (req, res, next) => {
     const isAdmin = req.admin
-    console.log(isAdmin);
     // Check if session exists and if admin is logged in
     if (isAdmin) {
         return next();

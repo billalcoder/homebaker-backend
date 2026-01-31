@@ -16,16 +16,13 @@ const razorpay = new Razorpay({
 
 route.post("/create-subscription", userSession, async (req, res) => {
     try {
-        console.log("REQ USER:", req.user);
 
         const user = req.user;
         if (!user) {
-            console.log("❌ USER NOT FOUND");
             return res.status(401).json({ success: false, message: "user not found" });
         }
 
         const shopData = await ShopModel.findOne({ clientId: user._id });
-        console.log("SHOP:", shopData);
 
         if (!shopData) {
             console.log("❌ SHOP NOT FOUND");
@@ -33,14 +30,11 @@ route.post("/create-subscription", userSession, async (req, res) => {
         }
 
         const subData = await subscriptions.findOne({ shopId: shopData._id });
-        console.log("SUB:", subData);
 
         if (subData) {
             console.log("❌ SUB ALREADY EXISTS");
             return res.status(409).json({ success: false, message: "Subscription already exists" });
         }
-
-        console.log("✅ CREATING RAZORPAY SUBSCRIPTION");
 
         const subscription = await razorpay.subscriptions.create({
             plan_id: "plan_S8oTxvwYnEzJfe",       // <-- REPLACE WITH YOUR PLAN ID

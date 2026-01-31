@@ -7,7 +7,6 @@ import { ClientModel } from "../models/ClientModel.js";
 export async function getShop(req, res, next) {
   try {
     const { latitude, longitude } = req.query;
-    // 1. Parse pagination parameters
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -15,8 +14,10 @@ export async function getShop(req, res, next) {
     // --- FALLBACK: NO LOCATION ---
     if (!latitude || !longitude) {
       const total = await ShopModel.countDocuments({ isActive: true });
+      
       const shops = await ShopModel.find({ isActive: true })
         .select("shopName shopDescription shopCategory city coverImage totalReviews")
+        .sort({ createdAt: -1 }) // ✅ ADD THIS: Stable sorting prevents duplicates
         .skip(skip)
         .limit(limit);
 
@@ -25,15 +26,19 @@ export async function getShop(req, res, next) {
       return res.json({
         success: true,
         count: normalized.length,
-        pagination: { total, page, totalPages: Math.ceil(total / limit) },
+        pagination: { 
+            total, 
+            page, // ✅ Ensure this matches frontend check
+            limit, 
+            totalPages: Math.ceil(total / limit) 
+        },
         shops: normalized
       });
     }
 
     // --- WITH LOCATION (Geo Search) ---
-    // Note: $geoNear must be the first stage. Pagination happens via $skip and $limit.
-    // --- WITH LOCATION (Geo Search) ---
-    const results = await ClientModel.aggregate([
+  const results = await ClientModel.aggregate([
+      // 1. Find nearby clients
       {
         $geoNear: {
           near: { type: "Point", coordinates: [parseFloat(longitude), parseFloat(latitude)] },
@@ -42,19 +47,37 @@ export async function getShop(req, res, next) {
           spherical: true
         }
       },
+      // 2. Join with Shops
       { $lookup: { from: "shops", localField: "_id", foreignField: "clientId", as: "shop" } },
+      
+      // 3. Ensure shop exists
       { $match: { "shop.0": { $exists: true } } },
+      
+      // 4. Flatten the array         
       { $unwind: "$shop" },
+
+      // 5. Filter for Active & Completed Profile
+      { 
+        $match: {
+          "shop.isActive": true,
+          "shop.shopName": { $exists: true, $ne: "Unnamed Shop" },
+          "shop.coverImage": { $exists: true, $ne: "" },
+          "shop.productCount": { $gte: 3 }
+        } 
+      },
+
+      // 6. Sort
+      { $sort: { distance: 1, _id: 1 } }, 
+
+      // 7. Pagination Facet
       {
         $facet: {
-          // Branch 1: Get the actual data
           data: [
             { $addFields: { distanceInKm: { $round: [{ $divide: ["$distance", 1000] }, 2] } } },
             { $project: { shop: "$shop", distanceInKm: 1 } },
             { $skip: skip },
             { $limit: limit }
           ],
-          // Branch 2: Get the total count for pagination
           totalCount: [
             { $count: "count" }
           ]
@@ -62,7 +85,7 @@ export async function getShop(req, res, next) {
       }
     ]);
 
-    const shops = results[0].data;
+    const shops = results[0].data || [];
     const total = results[0].totalCount[0]?.count || 0;
 
     return res.status(200).json({
@@ -72,18 +95,11 @@ export async function getShop(req, res, next) {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit) // Now this is calculated correctly
+        totalPages: Math.ceil(total / limit)
       },
       shops
     });
 
-    // For total count in aggregation, we'd ideally run a separate count or use $facet
-    return res.status(200).json({
-      success: true,
-      count: shops.length,
-      pagination: { page, limit }, // Detailed totalPages requires a facet stage or second query
-      shops
-    });
   } catch (error) {
     next(error);
   }
@@ -136,8 +152,7 @@ export async function getProduct(req, res, next) {
       });
     }
 
-    const products = await ProductModel.find({ shopId });
-
+    const products = await ProductModel.find({ shopId : shopId , isActive : true});
     if (!products || products.length === 0) {
       return res.status(404).json({
         success: false,

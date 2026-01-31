@@ -79,6 +79,7 @@ const shopSchema = new mongoose.Schema(
     },
 
     totalOrder: { type: Number, default: 1 },
+    productCount: { type: Number, default: 0 },
     status: {
       type: String,
       enum: [

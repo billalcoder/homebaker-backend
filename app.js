@@ -21,7 +21,7 @@ import { userSession } from "./middlewares/authmiddlewere.js"
 import { verifyAdmin } from "./middlewares/adminAuth.js"
 const app = express()
 
-app.use(express.json({ limit: '50kb' }))
+app.use(express.json({ limit: '50mb' }))
 app.use(cors({ origin: ["http://localhost:5502", "https://app.bakerlane.shop" , "https://migdalia-unvetoed-obstructedly.ngrok-free.dev" , "http://localhost:5173", "http://localhost:5174", "https://homebaker.netlify.app", "https://bakerlane.netlify.app", "https://bakerlane.shop"], credentials: true }))
 app.use(compression())
 app.use(cookieParser(process.env.SECRET))

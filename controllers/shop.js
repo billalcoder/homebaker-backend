@@ -60,9 +60,9 @@ export async function getShop(req, res, next) {
       { 
         $match: {
           "shop.isActive": true,
-          "shop.shopName": { $exists: true, $ne: "Unnamed Shop" },
-          "shop.coverImage": { $exists: true, $ne: "" },
-          "shop.productCount": { $gte: 3 }
+          // "shop.shopName": { $exists: true, $ne: "Unnamed Shop" },
+          // "shop.coverImage": { $exists: true, $ne: "" },
+          // "shop.productCount": { $gte: 3 }
         } 
       },
 

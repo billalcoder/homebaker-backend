@@ -43,7 +43,7 @@ export async function getShop(req, res, next) {
         $geoNear: {
           near: { type: "Point", coordinates: [parseFloat(longitude), parseFloat(latitude)] },
           distanceField: "distance",
-          maxDistance: 12000,
+          // maxDistance: 12000,
           spherical: true
         }
       },

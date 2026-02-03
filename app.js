@@ -20,7 +20,7 @@ import admin from "./Routes/adminRoutes.js"
 import { userSession } from "./middlewares/authmiddlewere.js"
 import { verifyAdmin } from "./middlewares/adminAuth.js"
 const app = express()
-
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '50mb' }))
 app.use(cors({ origin: ["http://localhost:5502", "https://app.bakerlane.shop", "https://migdalia-unvetoed-obstructedly.ngrok-free.dev", "http://localhost:5173", "http://localhost:5174", "https://homebaker.netlify.app", "https://bakerlane.netlify.app", "https://bakerlane.shop"], credentials: true }))
 app.use(compression())

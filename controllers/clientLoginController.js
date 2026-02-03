@@ -162,7 +162,7 @@ export async function deletePortfolioItem(req, res, next) {
         const itemId = req.params.itemId;
 
         // 1️⃣ Find shop
-        const shop = await ShopModel.findOne({ clientId } );
+        const shop = await ShopModel.findOne({ clientId });
         if (!shop) {
             return res.status(404).json({ error: "Shop not found" });
         }
@@ -175,7 +175,7 @@ export async function deletePortfolioItem(req, res, next) {
 
         product.isBestProduct = false
 
-        
+
 
         // 4️⃣ Remove product from shop portfolio
         await ShopModel.updateOne(
@@ -353,9 +353,11 @@ export async function clientLogoutController(req, res, next) {
 export async function addPortfolioImagesController(req, res, next) {
     try {
         const clientId = req.user.id;
-        const shopId = await ShopModel.findOneAndUpdate({clientId }, { $inc: { productCount: 1 } })
+        const shopId = await ShopModel.findOneAndUpdate({ clientId }, { $inc: { productCount: 1 } })
 
         const file = req.file; // ✅ SINGLE FILE
+        console.log( "file" , file);
+        // console.log( "Body" + req.body);
         const { title, price, unitType, unitValue, category } = req.body;
         // 1️⃣ Validation
         if (!file) {
@@ -443,7 +445,7 @@ export async function addProductData(req, res, next) {
             });
         }
         // 1. FIND THE SHOP
-        const shop = await ShopModel.findOneAndUpdate({clientId }, { $inc: { productCount: 1 } }).lean();
+        const shop = await ShopModel.findOneAndUpdate({ clientId }, { $inc: { productCount: 1 } }).lean();
         if (!shop) {
             return res.status(404).json({
                 error: "Shop profile not found. Please create your Shop Profile first."
@@ -544,7 +546,7 @@ export async function deleteProductController(req, res, next) {
         const productId = req.params.id;
 
         // 1. Find Shop (Ownership Check)
-        const shop =  await ShopModel.findOneAndUpdate({clientId }, { $inc: { productCount: -1 } }).lean()
+        const shop = await ShopModel.findOneAndUpdate({ clientId }, { $inc: { productCount: -1 } }).lean()
         if (!shop) return res.status(404).json({ error: "Shop not found" });
 
         // 2. Find Product

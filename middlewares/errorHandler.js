@@ -34,3 +34,5 @@ export const errorHandler = async (err, req, res, next) => {
     message: err.message || "Internal Server Error",
   });
 };
+
+

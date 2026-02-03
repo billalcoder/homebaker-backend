@@ -22,7 +22,7 @@ import { verifyAdmin } from "./middlewares/adminAuth.js"
 const app = express()
 
 app.use(express.json({ limit: '50mb' }))
-app.use(cors({ origin: ["http://localhost:5502", "https://app.bakerlane.shop" , "https://migdalia-unvetoed-obstructedly.ngrok-free.dev" , "http://localhost:5173", "http://localhost:5174", "https://homebaker.netlify.app", "https://bakerlane.netlify.app", "https://bakerlane.shop"], credentials: true }))
+app.use(cors({ origin: ["http://localhost:5502", "https://app.bakerlane.shop", "https://migdalia-unvetoed-obstructedly.ngrok-free.dev", "http://localhost:5173", "http://localhost:5174", "https://homebaker.netlify.app", "https://bakerlane.netlify.app", "https://bakerlane.shop"], credentials: true }))
 app.use(compression())
 app.use(cookieParser(process.env.SECRET))
 app.use(sanitizeRequest)
@@ -82,7 +82,7 @@ app.post("/log/frontend", async (req, res) => {
 });
 
 
-// app.use(limiter);
+app.use(limiter);
 
 app.use("/auth", auth)
 
@@ -98,7 +98,24 @@ app.use("/review", review)
 
 app.use("/search", searchRoutes);
 
-app.use("/admin" , userSession , verifyAdmin , admin)
+app.use("/admin", userSession, verifyAdmin, admin)
+
+// Add a new POST route specifically for client-side logging
+app.post('/api/client-log', (req, res) => {
+  const { error, context, device } = req.body;
+
+  // Use a special prefix so these stand out in your PM2 logs
+  console.error("🚨 === CLIENT PHONE ERROR REPORT === 🚨");
+  console.error("Time:", new Date().toISOString());
+  console.error("Device:", device); // Shows if it's iPhone/Android
+  console.error("Context:", context); // Where did it happen?
+  console.error("Error Message:", error.message);
+  console.error("Stack Trace:", error.stack);
+  console.error("========================================");
+
+  // Send success back so the client app doesn't hang
+  res.json({ success: true });
+});
 
 app.use(errorHandler)
 

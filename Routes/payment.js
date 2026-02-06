@@ -71,7 +71,7 @@ route.post("/webhook", async (req, res, next) => {
         const razorpaySignature = req.headers["x-razorpay-signature"];
 
         // 2. Your Webhook Secret (Store this in .env for production)
-        const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+        const secret = process.env.RAZOROK_SECRET;
 
         const shasum = crypto.createHmac("sha256", secret);
         shasum.update(JSON.stringify(req.body));

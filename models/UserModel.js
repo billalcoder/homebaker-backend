@@ -13,12 +13,12 @@ const userSchema = new mongoose.Schema(
 
         // New Nested Address Schema
         address: {
-            flatNo: { type: String, required: true, trim: true },
-            buildingName: { type: String, required: true, trim: true },
-            area: { type: String, required: true, trim: true },
-            city: { type: String, required: true, trim: true },
-            pincode: { type: String, required: true, trim: true },
-            state: { type: String, required: true, trim: true }
+            flatNo: { type: String, trim: true },
+            buildingName: { type: String, trim: true },
+            area: { type: String, trim: true },
+            city: { type: String, trim: true },
+            pincode: { type: String, trim: true },
+            state: { type: String, trim: true }
         }
     },
     { timestamps: true }

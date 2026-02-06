@@ -1,7 +1,7 @@
 import { loginService } from "../services/loginService.js";
-import { userLoginValidation } from "../validations/userValidation.js";
+import { addressValidation, userLoginValidation, userRegistrationValidation } from "../validations/userValidation.js";
 import { registrationService } from "../services/registrationService.js"
-import { userValidation } from "../validations/userValidation.js"
+// import { userRegistrationValidation } from "../validations/userValidation.js"
 import { userModel } from "../models/UserModel.js"
 import { logoutService } from "../services/logoutService.js"; // Adjust path 
 import {
@@ -55,7 +55,8 @@ export async function loginController(req, res, next) {
 
 export async function insertUser(req, res, next) {
     try {
-        const result = userValidation.safeParse(req.body);
+        // Use the NEW simple registration validation
+        const result = userRegistrationValidation.safeParse(req.body);
 
         if (!result.success) {
             return res.status(400).json({
@@ -74,6 +75,31 @@ export async function insertUser(req, res, next) {
     } catch (err) {
         console.error(err);
         next(err);
+    }
+}
+
+// 🔥 NEW: Add Address Controller
+export async function addUserAddress(req, res, next) {
+    try {
+        const userId = req.user._id; // Assuming userSession middleware sets this
+        const result = addressValidation.safeParse(req.body);
+
+        if (!result.success) {
+            return res.status(400).json({ error: result.error.errors[0].message });
+        }
+
+        const user = await userModel.findByIdAndUpdate(
+            userId,
+            { $set: { address: result.data } },
+            { new: true }
+        );
+
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        res.status(200).json({ success: true, message: "Address updated successfully", address: user.address });
+
+    } catch (error) {
+        next(error);
     }
 }
 

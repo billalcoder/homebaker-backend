@@ -1,11 +1,12 @@
 import express from "express"
-import { insertUser, loginController, logout, sendOtp, updateUserPassword, updateUserProfile, varifyOtp } from "../controllers/loginController.js";
+import { addUserAddress, insertUser, loginController, logout, sendOtp, updateUserPassword, updateUserProfile, varifyOtp } from "../controllers/loginController.js";
 import { userSession } from "../middlewares/authmiddlewere.js";
 
 const app = express
 const route = app.Router()
 
 route.post("/register", insertUser);
+route.post("/address" , userSession, addUserAddress);
 
 route.post("/login", loginController);
 route.post("/otp", sendOtp)

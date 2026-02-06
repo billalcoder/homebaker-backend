@@ -10,7 +10,9 @@ export async function createOrder(req, res, next) {
     try {
         const userdata = req.user;
         const { productId } = req.body
-
+        if (userdata.address) {
+            return res.status(402).json({ error: "Please add your address" })
+        }
         if (!productId) {
             const validation = orderValidation.safeParse(req.body);
 

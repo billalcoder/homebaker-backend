@@ -14,7 +14,7 @@ export async function getShop(req, res, next) {
     // --- FALLBACK: NO LOCATION ---
     if (!latitude || !longitude) {
       const total = await ShopModel.countDocuments({ isActive: true });
-      
+
       const shops = await ShopModel.find({ isActive: true })
         .select("shopName shopDescription shopCategory city coverImage totalReviews")
         .sort({ createdAt: -1 }) // ✅ ADD THIS: Stable sorting prevents duplicates
@@ -26,18 +26,18 @@ export async function getShop(req, res, next) {
       return res.json({
         success: true,
         count: normalized.length,
-        pagination: { 
-            total, 
-            page, // ✅ Ensure this matches frontend check
-            limit, 
-            totalPages: Math.ceil(total / limit) 
+        pagination: {
+          total,
+          page, // ✅ Ensure this matches frontend check
+          limit,
+          totalPages: Math.ceil(total / limit)
         },
         shops: normalized
       });
     }
 
     // --- WITH LOCATION (Geo Search) ---
-  const results = await ClientModel.aggregate([
+    const results = await ClientModel.aggregate([
       // 1. Find nearby clients
       {
         $geoNear: {
@@ -49,25 +49,25 @@ export async function getShop(req, res, next) {
       },
       // 2. Join with Shops
       { $lookup: { from: "shops", localField: "_id", foreignField: "clientId", as: "shop" } },
-      
+
       // 3. Ensure shop exists
       { $match: { "shop.0": { $exists: true } } },
-      
+
       // 4. Flatten the array         
       { $unwind: "$shop" },
 
       // 5. Filter for Active & Completed Profile
-      { 
+      {
         $match: {
           "shop.isActive": true,
           "shop.shopName": { $exists: true, $ne: "Unnamed Shop" },
           "shop.coverImage": { $exists: true, $ne: "" },
           "shop.productCount": { $gte: 3 }
-        } 
+        }
       },
 
       // 6. Sort
-      { $sort: { distance: 1, _id: 1 } }, 
+      { $sort: { distance: 1, _id: 1 } },
 
       // 7. Pagination Facet
       {
@@ -102,6 +102,41 @@ export async function getShop(req, res, next) {
 
   } catch (error) {
     next(error);
+  }
+}
+
+export async function status(req, res, next) {
+  try {
+    // Assuming req.clientId or req.user._id is available from middleware
+    const shop = await ShopModel.findOne({ clientId: req.user._id });
+
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    res.json({ status: shop.isActive });
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function toggle(req, res, next) {
+  try {
+    const shop = await ShopModel.findOne({ clientId: req.user._id  });
+
+    if (!shop) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+
+    // Toggle logic
+    shop.isActive = shop.isActive === true ? false : true;
+    await shop.save();
+
+    res.json({
+      message: `Shop is now ${shop.isActive}`,
+      status: shop.isActive
+    });
+
+  } catch (error) {
+    next(error)
   }
 }
 
@@ -152,7 +187,7 @@ export async function getProduct(req, res, next) {
       });
     }
 
-    const products = await ProductModel.find({ shopId : shopId , isActive : true});
+    const products = await ProductModel.find({ shopId: shopId, isActive: true });
     if (!products || products.length === 0) {
       return res.status(404).json({
         success: false,

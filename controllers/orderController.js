@@ -9,8 +9,14 @@ import { orderValidation } from "../validations/orderValidation.js";
 export async function createOrder(req, res, next) {
     try {
         const userdata = req.user;
+        const { flatNo,
+            buildingName,
+            area,
+            city, pincode,
+            state } = userdata.address
+
         const { productId } = req.body
-        if (!userdata.address) {
+        if (!flatNo || !buildingName || !area || !city || !pincode || !state) {
             return res.status(402).json({ error: "Please add your address" })
         }
         if (!productId) {

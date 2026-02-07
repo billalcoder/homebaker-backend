@@ -31,7 +31,7 @@ route.post("/create-subscription", userSession, async (req, res) => {
 
         const subData = await subscriptions.findOne({ shopId: shopData._id });
 
-        if (subData) {
+        if (subData.status == "active") {
             console.log("❌ SUB ALREADY EXISTS");
             return res.status(409).json({ success: false, message: "Subscription already exists" });
         }

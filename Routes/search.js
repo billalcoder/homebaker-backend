@@ -2,10 +2,11 @@ import express from "express";
 import { ProductModel } from "../models/ProductModel.js";
 import { ShopModel } from "../models/ShopModel.js";
 import { ClientModel } from "../models/ClientModel.js";
+import { searchLimiter } from "../middlewares/rateLimiters.js";
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
+router.get("/", searchLimiter ,async (req, res) => {
   try {
     const { q, lat, lng } = req.query;
     if (!q) {

@@ -83,7 +83,7 @@ export async function addUserAddress(req, res, next) {
     try {
         const userId = req.user._id; // Assuming userSession middleware sets this
         const result = addressValidation.safeParse(req.body);
-
+        console.log(userId);
         if (!result.success) {
             return res.status(400).json({ error: result.error.errors[0].message });
         }
@@ -93,6 +93,7 @@ export async function addUserAddress(req, res, next) {
             { $set: { address: result.data } },
             { new: true }
         );
+        console.log(user);
 
         if (!user) return res.status(404).json({ error: "User not found" });
 

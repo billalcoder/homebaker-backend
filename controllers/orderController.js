@@ -13,7 +13,7 @@ export async function createOrder(req, res, next) {
             buildingName,
             area,
             city, pincode,
-            state } = userdata.address
+            state } = userdata?.address || {}
 
         const { productId } = req.body
         if (!flatNo || !buildingName || !area || !city || !pincode || !state) {

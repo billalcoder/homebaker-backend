@@ -20,6 +20,7 @@ import {
 
 import { upload } from "../middlewares/upload.js";
 import { userSession } from "../middlewares/authmiddlewere.js";
+import { authLimiter } from "../middlewares/rateLimiters.js";
 
 const route = express.Router(); // <--- FIXED THIS LINE
 
@@ -43,13 +44,13 @@ route.put("/updateprofile" , userSession , updateprofile)
 route.put("/updatepassword" , userSession , updateClientPassword)
 
 // POST Routes
-route.post("/register", clientRegisterController);
-route.post("/login", clientLoginController);
+route.post("/register", authLimiter, clientRegisterController);
+route.post("/login", authLimiter,clientLoginController);
 route.post("/logout", userSession, clientLogoutController);
 route.post("/portfolio", userSession, upload.single("portfolioImages", 7), addPortfolioImagesController);
 route.post("/product", userSession, upload.array("productImages", 5), addProductData)
-route.post("/sendOtp", sendOtp)
-route.post("/varifyOtp", varifyOtp)
+route.post("/sendOtp", authLimiter,sendOtp)
+route.post("/varifyOtp", authLimiter,varifyOtp)
 // Delete request
 route.delete("/product/:id", userSession, deleteProductController);
 route.delete("/portfolio/:itemId", userSession, deletePortfolioItem);

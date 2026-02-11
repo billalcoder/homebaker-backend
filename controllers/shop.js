@@ -17,10 +17,9 @@ export async function getShop(req, res, next) {
 
       const shops = await ShopModel.find({
         isActive: true,
-        "shop.isActive": true,
-        "shop.shopName": { $exists: true, $ne: "Unnamed Shop" },
-        "shop.coverImage": { $exists: true, $ne: "" },
-        "shop.productCount": { $gte: 3 }
+        shopName: { $exists: true, $ne: "Unnamed Shop" },
+        coverImage: { $exists: true, $ne: "" },
+        productCount: { $gte: 3 }
       })
         .select("shopName shopDescription shopCategory city coverImage profileImage totalReviews")
         .sort({ createdAt: -1 }) // ✅ ADD THIS: Stable sorting prevents duplicates
@@ -33,7 +32,7 @@ export async function getShop(req, res, next) {
         success: true,
         count: normalized.length,
         pagination: {
-          total,
+          shopd : shops.length,
           page, // ✅ Ensure this matches frontend check
           limit,
           totalPages: Math.ceil(total / limit)

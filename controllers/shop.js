@@ -16,7 +16,7 @@ export async function getShop(req, res, next) {
       const total = await ShopModel.countDocuments({ isActive: true });
 
       const shops = await ShopModel.find({ isActive: true })
-        .select("shopName shopDescription shopCategory city coverImage totalReviews")
+        .select("shopName shopDescription shopCategory city coverImage profileImage totalReviews")
         .sort({ createdAt: -1 }) // ✅ ADD THIS: Stable sorting prevents duplicates
         .skip(skip)
         .limit(limit);

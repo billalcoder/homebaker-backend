@@ -3,66 +3,76 @@ import { orderModel } from "../models/OrderModel.js";
 import { ProductModel } from "../models/ProductModel.js";
 import { productIdValidation } from "../validations/productValidation.js";
 import { ShopModel } from "../models/ShopModel.js";
-import { sendNewOrderAlertMail, sendOrderStatusMail } from "../utils/otp.js";
+import { sendNewOrderAlertMail, sendOrderConfirmationMail, sendOrderStatusMail } from "../utils/otp.js";
 import { orderValidation } from "../validations/orderValidation.js";
 
 export async function createOrder(req, res, next) {
     try {
         const userdata = req.user;
-        const { flatNo,
-            buildingName,
-            area,
-            city, pincode,
-            state } = userdata?.address || {}
+        const { flatNo, buildingName, area, city, pincode, state } = userdata?.address || {};
 
-        const { productId } = req.body
         if (!flatNo || !buildingName || !area || !city || !pincode || !state) {
-            return res.status(422).json({ error: "Please add your address" })
+            return res.status(422).json({ error: "Please add your address" });
         }
+
+        // Format address for the email
+        const fullAddress = `${flatNo}, ${buildingName}, ${area}, ${city} - ${pincode}, ${state}`;
+
+        const { productId } = req.body;
+
         if (!productId) {
             const validation = orderValidation.safeParse(req.body);
 
             if (!validation.success) {
                 return res.status(400).json({
                     success: false,
-                    error: validation.error.format() // .format() makes errors easier to read
+                    error: validation.error.format()
                 });
             }
 
             const { shopId, items, customization } = validation.data;
+
             // ============================================================
             // 🟧 SCENARIO A: CUSTOM ORDER REQUEST
             // ============================================================
             if (customization && Object.keys(customization).length > 0) {
-
-                // 1. Verify Shop Exists
                 const shopData = await ShopModel.findById(shopId).populate("clientId", "name email");
                 if (!shopData) {
                     return res.status(404).json({ success: false, message: "Shop not found" });
                 }
 
-                // 2. Create the Custom Order
                 const newOrder = await orderModel.create({
                     userId: userdata._id,
                     shopId: shopId,
-                    items: [], // Empty items for custom request
+                    items: [],
                     customization: customization,
-                    totalAmount: 0, // Price is TBD (To Be Decided) by baker
+                    totalAmount: 0,
                     orderStatus: "pending",
                     paymentStatus: "pending"
                 });
 
-                // 3. Send Email to Baker (Custom Message)
-                if (shopData.ownerId) {
+                // 📧 Send Emails for Custom Order
+                if (shopData.clientId) {
+                    // Alert Baker
                     sendNewOrderAlertMail({
-                        bakerEmail: shopData.ownerId.email,
-                        bakerName: shopData.ownerId.name,
+                        bakerEmail: shopData.clientId.email,
+                        bakerName: shopData.clientId.name,
                         shopName: shopData.shopName,
                         orderId: newOrder._id,
-                        productName: `Custom Request: ${customization.theme} Cake`,
+                        productName: `Custom Request: ${customization.theme || 'Special'} Cake`,
                         quantity: 1,
                         totalAmount: "Pending Quote",
-                        type: "CUSTOM" // You might need to update your mailer to handle this flag
+                    }).catch(console.error);
+
+                    // Confirm to Customer
+                    sendOrderConfirmationMail({
+                        customerEmail: userdata.email,
+                        customerName: userdata.name,
+                        orderId: newOrder._id,
+                        shopName: shopData.shopName,
+                        items: [{ productName: `Custom Request (${customization.theme || 'Special'} Cake)`, quantity: 1, price: "TBD" }],
+                        totalAmount: "Pending Quote (Baker will review)",
+                        deliveryAddress: fullAddress
                     }).catch(console.error);
                 }
 
@@ -78,14 +88,6 @@ export async function createOrder(req, res, next) {
         // 🟦 SCENARIO B: STANDARD PRODUCT ORDER
         // ============================================================
 
-
-
-        // For now, let's handle the first item (since your UI logic seemed to handle single buy)
-        // If you want a full cart checkout later, loop through 'items'
-        // const targetItem = items[0];
-        // const { productId, quantity } = targetItem;
-
-        // 1. Prevent duplicate active order for this specific product
         const existingOrder = await orderModel.findOne({
             userId: userdata._id,
             orderStatus: "pending",
@@ -99,7 +101,6 @@ export async function createOrder(req, res, next) {
             });
         }
 
-        // 2. Fetch product details (Source of Truth for Price)
         const productData = await ProductModel.findById(productId)
             .populate("shopId", "shopName")
             .populate("clientId", "name email phone");
@@ -108,35 +109,46 @@ export async function createOrder(req, res, next) {
             return res.status(404).json({ success: false, message: "Product not found" });
         }
 
-        // 3. Create Standard Order
         const order = await orderModel.create({
             shopId: productData.shopId._id,
             userId: userdata._id,
             items: [{
                 productId: productData._id,
-                price: productData.price, // Always take price from DB, not frontend
+                price: productData.price,
+                productName: productData.productName // Useful for email mapping
             }],
             totalAmount: productData.price,
             orderStatus: "pending"
         });
 
-        // 4. Increase shop order count
         await ShopModel.findByIdAndUpdate(
             productData.shopId._id,
             { $inc: { totalOrder: 1 } }
         );
 
-        // 5. Send Email
+        // 📧 Send Emails for Standard Order
+        // Alert Baker
         sendNewOrderAlertMail({
             bakerEmail: productData.clientId.email,
             bakerName: productData.clientId.name,
             shopName: productData.shopId.shopName,
             orderId: order._id,
             productName: productData.productName,
+            quantity: 1,
             totalAmount: order.totalAmount
         }).catch(console.error);
 
-        // 6. Return populated response
+        // Confirm to Customer
+        sendOrderConfirmationMail({
+            customerEmail: userdata.email,
+            customerName: userdata.name,
+            orderId: order._id,
+            shopName: productData.shopId.shopName,
+            items: [{ productName: productData.productName, quantity: 1, price: productData.price }],
+            totalAmount: order.totalAmount,
+            deliveryAddress: fullAddress
+        }).catch(console.error);
+
         const populatedOrder = await orderModel
             .findById(order._id)
             .populate("shopId")

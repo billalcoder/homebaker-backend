@@ -133,3 +133,61 @@ export async function sendNewOrderAlertMail({
 
   await transporter.sendMail(mailOptions);
 }
+
+export async function sendOrderConfirmationMail({
+  customerEmail,
+  customerName,
+  orderId,
+  shopName,
+  items, // Expected as an array of objects
+  totalAmount,
+  deliveryAddress
+}) {
+  // Generate a simple list of items for the email
+  const itemsHtml = items.map(item => 
+    `<li>${item.productName} x ${item.quantity} - ₹${item.price}</li>`
+  ).join('');
+
+ const mailOptions = {
+  from: "BakerLane <billalshekhani23@gmail.com>",
+  to: customerEmail,
+  subject: "✅ Order Received - BakerLane",
+  html: `
+    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 600px; margin: auto;">
+      <h2 style="color: #d81b60;">Your treat is being reviewed! 🧁</h2>
+      
+      <p>Hi <b>${customerName}</b>,</p>
+      
+      <p>Thank you for your order from <b>${shopName}</b>! We have sent your request to the baker for approval.</p>
+      
+      <div style="background-color: #fff9c4; padding: 15px; border-radius: 8px; border: 1px solid #fbc02d; margin: 20px 0;">
+        <h4 style="margin: 0 0 10px 0; color: #f57f17;">What happens next?</h4>
+        <p style="margin: 0; font-size: 14px;">
+          Once the baker <b>accepts your order</b>, you will receive their <b>contact number</b> in the app so you can connect with them directly for any specific instructions or delivery updates.
+        </p>
+      </div>
+
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0;">Order Details</h3>
+        <p><b>Order ID:</b> #${orderId}</p>
+        <ul style="list-style: none; padding-left: 0;">
+          ${itemsHtml}
+        </ul>
+        <hr style="border: 0; border-top: 1px solid #ddd;" />
+        <p style="font-size: 18px;"><b>Total Amount: ₹${totalAmount}</b></p>
+      </div>
+
+      <p><b>Delivering to:</b><br/>${deliveryAddress}</p>
+
+      <p>Keep an eye on your notifications for the baker's response!</p>
+
+      <p>Stay sweet,<br/>The BakerLane Team</p>
+      
+      <hr style="margin-top: 30px; border: 0; border-top: 1px solid #eee;" />
+      <small style="color: #888;">© ${new Date().getFullYear()} BakerLane | This is an automated update.</small>
+    </div>
+  `
+};
+
+  await transporter.sendMail(mailOptions);
+}

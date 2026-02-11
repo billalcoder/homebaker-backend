@@ -13,8 +13,6 @@ export async function getShop(req, res, next) {
 
     // --- FALLBACK: NO LOCATION ---
     if (!latitude || !longitude) {
-      const total = await ShopModel.countDocuments({ isActive: true });
-
       const shops = await ShopModel.find({
         isActive: true,
         shopName: { $exists: true, $ne: "Unnamed Shop" },

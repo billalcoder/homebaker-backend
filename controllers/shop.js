@@ -15,7 +15,13 @@ export async function getShop(req, res, next) {
     if (!latitude || !longitude) {
       const total = await ShopModel.countDocuments({ isActive: true });
 
-      const shops = await ShopModel.find({ isActive: true })
+      const shops = await ShopModel.find({
+        isActive: true,
+        "shop.isActive": true,
+        "shop.shopName": { $exists: true, $ne: "Unnamed Shop" },
+        "shop.coverImage": { $exists: true, $ne: "" },
+        "shop.productCount": { $gte: 3 }
+      })
         .select("shopName shopDescription shopCategory city coverImage profileImage totalReviews")
         .sort({ createdAt: -1 }) // ✅ ADD THIS: Stable sorting prevents duplicates
         .skip(skip)
@@ -120,7 +126,7 @@ export async function status(req, res, next) {
 
 export async function toggle(req, res, next) {
   try {
-    const shop = await ShopModel.findOne({ clientId: req.user._id  });
+    const shop = await ShopModel.findOne({ clientId: req.user._id });
 
     if (!shop) {
       return res.status(404).json({ message: "Shop not found" });

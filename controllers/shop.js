@@ -33,7 +33,7 @@ export async function getShop(req, res, next) {
           shopd : shops.length,
           page, // ✅ Ensure this matches frontend check
           limit,
-          totalPages: Math.ceil(total / limit)
+          totalPages: Math.ceil(shops.length / limit)
         },
         shops: normalized
       });

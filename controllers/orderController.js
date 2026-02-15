@@ -30,55 +30,67 @@ export async function createOrder(req, res, next) {
                 });
             }
 
-            const { shopId, items, customization } = validation.data;
+            const { shopId, customization } = validation.data;
 
-            // ============================================================
-            // 🟧 SCENARIO A: CUSTOM ORDER REQUEST
-            // ============================================================
-            if (customization && Object.keys(customization).length > 0) {
+            if (customization) {
                 const shopData = await ShopModel.findById(shopId).populate("clientId", "name email");
                 if (!shopData) {
                     return res.status(404).json({ success: false, message: "Shop not found" });
                 }
 
+                // Create the order with customization details
                 const newOrder = await orderModel.create({
                     userId: userdata._id,
                     shopId: shopId,
-                    items: [],
-                    customization: customization,
-                    totalAmount: 0,
+                    items: [], // Custom orders usually start with an empty item list until baker adds a price
+                    customization: {
+                        weight: customization.weight,
+                        flavor: customization.flavor,
+                        theme: customization.theme,
+                        notes: customization.notes
+                    },
+                    totalAmount: 0, // Baker will update this later
                     orderStatus: "pending",
                     paymentStatus: "pending"
                 });
 
-                // 📧 Send Emails for Custom Order
+                // Update shop total order count
+                await ShopModel.findByIdAndUpdate(shopId, { $inc: { totalOrder: 1 } });
+
+                // 📧 Send Emails
                 if (shopData.clientId) {
-                    // Alert Baker
+                    const customDetailsSummary = `${customization.weight} ${customization.flavor} cake (${customization.theme || 'No specific theme'})`;
+
+                    // Alert Baker: Custom Request
                     sendNewOrderAlertMail({
                         bakerEmail: shopData.clientId.email,
                         bakerName: shopData.clientId.name,
                         shopName: shopData.shopName,
                         orderId: newOrder._id,
-                        productName: `Custom Request: ${customization.theme || 'Special'} Cake`,
+                        productName: `CUSTOM REQUEST: ${customDetailsSummary}`,
                         quantity: 1,
                         totalAmount: "Pending Quote",
                     }).catch(console.error);
 
-                    // Confirm to Customer
+                    // Confirm to Customer: Custom Request Received
                     sendOrderConfirmationMail({
                         customerEmail: userdata.email,
                         customerName: userdata.name,
                         orderId: newOrder._id,
                         shopName: shopData.shopName,
-                        items: [{ productName: `Custom Request (${customization.theme || 'Special'} Cake)`, quantity: 1, price: "TBD" }],
-                        totalAmount: "Pending Quote (Baker will review)",
+                        items: [{
+                            productName: `Custom Cake (${customDetailsSummary})`,
+                            quantity: 1,
+                            price: "TBD"
+                        }],
+                        totalAmount: "Pending Review (Baker will send a quote soon)",
                         deliveryAddress: fullAddress
                     }).catch(console.error);
                 }
 
                 return res.status(201).json({
                     success: true,
-                    message: "Custom request sent successfully",
+                    message: "Custom order request sent! The baker will review and update the price.",
                     data: newOrder
                 });
             }

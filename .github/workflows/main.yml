@@ -1,0 +1,19 @@
+name: baker
+on: push
+jobs:
+    bakersjob:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - uses: appleboy/ssh-action@v1.2.5
+              with:
+                host: ${{secrets.REMOTE_HOST}}
+                username: ${{ secrets.REMOTE_USER }}
+                key: ${{ secrets.SSH_PRIVATE_KEY }}
+                port: 22
+                script: |
+                    cd /baker
+                    git pull origin main
+                    npm install
+                    pm2 restart all || pm2 start app.js --name "baker-app"
+

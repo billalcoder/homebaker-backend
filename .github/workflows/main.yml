@@ -12,8 +12,8 @@ jobs:
                 key: ${{ secrets.SSH_PRIVATE_KEY }}
                 port: 22
                 script: |
-                    cd ./baker-backend
+                    cd ~/baker-backend
                     git pull origin main
                     npm install
-                    pm2 restart all || pm2 start app.js --name "baker-app"
+                    pm2 restart bakerlane || pm2 start app.js --name "bakerlane"
 

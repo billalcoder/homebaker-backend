@@ -3,6 +3,7 @@ import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import auth from "./Routes/auth.js"
+// import lead from "./Routes/leadRouter.js"
 import client from "./Routes/clientAuth.js"
 import order from "./Routes/order.js"
 import { sanitizeRequest } from "./middlewares/sanitizationMiddlewere.js"
@@ -19,6 +20,9 @@ import { ErrorLog } from "./models/errorlog.js"
 import admin from "./Routes/adminRoutes.js"
 import { userSession } from "./middlewares/authmiddlewere.js"
 import { verifyAdmin } from "./middlewares/adminAuth.js"
+import ai from "./Routes/aiRouter.js"
+import { aiResponse } from "./utils/gemine.js"
+import { clientLoginController } from "./controllers/clientLoginController.js"
 const app = express()
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '50mb' }))
@@ -86,6 +90,8 @@ app.use(limiter);
 
 app.use("/auth", auth)
 
+// app.use("/lead", lead)
+
 app.use("/client", client)
 
 app.use("/order", order)
@@ -97,6 +103,8 @@ app.use("/shop", shop)
 app.use("/review", review)
 
 app.use("/search", searchRoutes);
+
+app.use("/ai" , ai)
 
 app.use("/admin", userSession, verifyAdmin, admin)
 

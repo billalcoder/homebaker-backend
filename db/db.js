@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 try {
     if(process.env.NODE_ENV !== "test"){
-        await mongoose.connect(process.env.TEST_MONGO_URI)
+        await mongoose.connect(process.env.MONGO_URI)
         console.log("Database connected");
     }
 } catch (error) {

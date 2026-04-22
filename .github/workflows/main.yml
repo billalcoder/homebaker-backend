@@ -5,7 +5,7 @@ on:
 jobs:
     bakersjob:
         runs-on: ubuntu-latest
-        environment: ${{github.ref_name == 'main' && 'production' || 'test'}}
+        environment:  ${{github.ref_name == 'main' && 'production' || 'test'}}
         steps:
             - uses: actions/checkout@v6
             - uses: appleboy/ssh-action@v1.2.5
@@ -15,8 +15,24 @@ jobs:
                 key: ${{ secrets.SSH_PRIVATE_KEY }}
                 port: 22
                 script: |
-                  cd ~/${{ secrets.PROJECT_PATH }}
-                  git pull origin ${{ github.ref_name }}
-                  npm install --production
-                  pm2 restart ${{ vars.PM2_NAME }} --update-env || pm2 start ecosystem.config.cjs --name "${{vars.PM2_NAME }}"
+                    cat > ${{secrets.PROJECT_PATH}}/.env << 'EOF'
+                    NODE_ENV=production
+                    SECRET=${{secrets.SECRET}}
+                    RZP_KEY_SECRET=${{secrets.TEST_RZP_KEY_SECRET}}
+                    RZP_KEY_ID=${{secrets.TEST_RZP_KEY_ID}}
+                    RAZOROK_SECRET=${{secrets.TEST_RAZOROK_SECRET}}
+                    PORT=${{secrets.TEST_PORT}}
+                    MONGOURL=${{secrets.MONGOURL}}
+                    GEMINI_API_KEY=${{secrets.TEST_GEMINI_API_KEY}}
+                    EMAIL=${{secrets.TEST_EMAIL}}
+                    AWS_ACCESS_KEY_ID=${{secrets.TEST_AWS_ACCESS_KEY_ID}}
+                    AWS_BUCKET_NAME=${{secrets.TEST_AWS_BUCKET_NAME}}
+                    AWS_CLOUDFRONT_DOMAI=${{secrets.TEST_AWS_CLOUDFRONT_DOMAIN}}
+                    AWS_REGION=${{secrets.TEST_AWS_REGION}}
+                    AWS_SECRET_ACCESS_KEY=${{secrets.TEST_AWS_SECRET_ACCESS_KEY}}
+                    EOF
+                    cd ~/${{secrets.PROJECT_PATH}}
+                    git pull origin ${{github.ref_name}}
+                    npm install --omit=dev
+                    pm2 restart ${{ vars.PM2_NAME }} --update-env || pm2 start ecosystem.config.cjs --name "${{ vars.PM2_NAME }}"
 

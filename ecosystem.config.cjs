@@ -6,9 +6,9 @@ module.exports = {
       // This tells PM2 to look for the .env file in the folder it's running in
       env_file: ".env", 
       env: {
-        NODE_ENV: "production",
+        NODE_ENV: "development",
         // Manually add one key here just to test
-        RZP_KEY_ID: "rzp_live_your_actual_id" 
+        RZP_KEY_ID: "rzp_live_your_actual_id1212" 
       }
     }
   ]

@@ -3,6 +3,7 @@ on: push
 jobs:
     bakersjob:
         runs-on: ubuntu-latest
+        environment: ${{github.ref_name == 'main' && 'prodution' || 'test'}}
         steps:
             - uses: actions/checkout@v6
             - uses: appleboy/ssh-action@v1.2.5
@@ -12,8 +13,8 @@ jobs:
                 key: ${{ secrets.SSH_PRIVATE_KEY }}
                 port: 22
                 script: |
-                    cd ~/homebaker-backend
+                    cd ~/${{secrets.PROJECT_PATH}}
                     git pull origin main
                     npm install --production
-                    pm2 restart bakerlane || pm2 start app.js --name "bakerlane"
+                    pm2 restart ${{secrets.PM2_NAME}} || pm2 start app.js --name "${{secrets.PM2_NAME}}"
 

@@ -3,7 +3,7 @@ on:
   push:
     branches: [main, develop]
 jobs:
-    bakersjob:
+    developmentjob:
         runs-on: ubuntu-latest
         environment:  ${{github.ref_name == 'main' && 'production' || 'test'}}
         steps:

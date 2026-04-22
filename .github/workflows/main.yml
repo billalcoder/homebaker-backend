@@ -12,8 +12,9 @@ jobs:
                 username: ${{ secrets.REMOTE_USER }}
                 key: ${{ secrets.SSH_PRIVATE_KEY }}
                 port: 22
-                    cd ~/${{ secrets.PROJECT_PATH }}
-                    git pull origin ${{ github.ref_name }}
-                    npm install --production
-                    pm2 restart ${{ vars.PM2_NAME }} --update-env || pm2 start ecosystem.config.cjs --name "${{ vars.PM2_NAME}}"
+                script: |
+                  cd ~/${{ secrets.PROJECT_PATH }}
+                  git pull origin ${{ github.ref_name }}
+                  npm install --production
+                  pm2 restart ${{ vars.PM2_NAME }} --update-env || pm2 start ecosystem.config.cjs --name "${{ vars.PM2_NAME}}"
 

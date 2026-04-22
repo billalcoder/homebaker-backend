@@ -12,14 +12,10 @@ jobs:
                 username: ${{ secrets.REMOTE_USER }}
                 key: ${{ secrets.SSH_PRIVATE_KEY }}
                 port: 22
-                script: |
                     cd ~/${{ secrets.PROJECT_PATH }}
                     git pull origin ${{ github.ref_name }}
                     npm install --production
-                    
-                    # For Native Node.js env-file, we tell PM2 to use the 'node' interpreter 
-                    # with the specific flag.
                     pm2 delete ${{ vars.PM2_NAME }} || true
-                    pm2 start app.js --name "${{ vars.PM2_NAME }}" --interpreter node -- --env-file=.env
+                    pm2 start ecosystem.config.cjs --only ${{ vars.PM2_NAME }}
                     pm2 save
 

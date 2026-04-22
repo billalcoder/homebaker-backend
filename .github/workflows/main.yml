@@ -14,7 +14,7 @@ jobs:
                 port: 22
                 script: |
                     cd ~/${{secrets.PROJECT_PATH}}
-                    git pull origin main
+                    git pull origin ${{github.ref_name}}
                     npm install --production
                     pm2 restart ${{secrets.PM2_NAME}} || pm2 start app.js --name "${{secrets.PM2_NAME}}"
 

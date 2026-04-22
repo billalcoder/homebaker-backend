@@ -6,6 +6,6 @@ try {
         console.log("Database connected");
     }
 } catch (error) {
-    console.log(process.env.MONGO_URI)
+    console.log(process.env.MONGOURI)
     console.log("Database does not connected");
 }

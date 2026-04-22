@@ -128,7 +128,7 @@ app.post('/api/client-log', (req, res) => {
 app.use(errorHandler)
 
 if (process.env.NODE_ENV !== "test") {
-  app.listen(4000, (err) => {
+  app.listen(process.env.PORT , (err) => {
     if (err) console.log(err);
     console.log("server is running 4000");
   })

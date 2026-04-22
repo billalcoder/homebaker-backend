@@ -15,7 +15,7 @@ jobs:
                 key: ${{ secrets.SSH_PRIVATE_KEY }}
                 port: 22
                 script: |
-                    cat > /${{secrets.PROJECT_PATH}}/.env << 'EOF'
+                    cat > ${{secrets.PROJECT_PATH}}/.env << 'EOF'
                     NODE_ENV=production
                     SECRET=${{secrets.SECRET}}
                     RZP_KEY_SECRET=${{secrets.RZP_KEY_SECRET}}
@@ -30,7 +30,7 @@ jobs:
                     AWS_CLOUDFRONT_DOMAI=${{secrets.AWS_CLOUDFRONT_DOMAI}}
                     AWS_REGION=${{secrets.AWS_REGION}}
                     AWS_SECRET_ACCESS_KEY=${{secrets.AWS_SECRET_ACCESS_KEY}}
-                    
+                    EOF
                     cd ~/${{secrets.PROJECT_PATH}}
                     git pull origin ${{github.ref_name}}
                     npm install --omit=dev

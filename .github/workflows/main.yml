@@ -5,7 +5,7 @@ on:
 jobs:
     bakersjob:
         runs-on: ubuntu-latest
-        environment: ${{github.ref_name == 'main' && 'production' || 'test'}}
+        environment: production
         steps:
             - uses: actions/checkout@v6
             - uses: appleboy/ssh-action@v1.2.5
@@ -15,6 +15,22 @@ jobs:
                 key: ${{ secrets.SSH_PRIVATE_KEY }}
                 port: 22
                 script: |
+                    cat > /your/app/path/.env << 'EOF'
+                    NODE_ENV=production
+                    SECRET=${{secrets.SECRET}}
+                    RZP_KEY_SECRET=${{secrets.RZP_KEY_SECRET}}
+                    RZP_KEY_ID=${{secrets.RZP_KEY_ID}}
+                    RAZOROK_SECRET=${{secrets.RAZOROK_SECRET}}
+                    PORT=${{secrets.PORT}}
+                    MONGOURL=${{secrets.MONGOURL}}
+                    GEMINI_API_KEY=${{secrets.GEMINI_API_KEY}}
+                    EMAIL=${{secrets.EMAIL}}
+                    AWS_ACCESS_KEY_ID=${{secrets.AWS_ACCESS_KEY_ID}}
+                    AWS_BUCKET_NAME=${{secrets.AWS_BUCKET_NAME}}
+                    AWS_CLOUDFRONT_DOMAI=${{secrets.AWS_CLOUDFRONT_DOMAI}}
+                    AWS_REGION=${{secrets.AWS_REGION}}
+                    AWS_SECRET_ACCESS_KEY=${{secrets.AWS_SECRET_ACCESS_KEY}}
+                    
                     cd ~/${{secrets.PROJECT_PATH}}
                     git pull origin ${{github.ref_name}}
                     npm install --omit=dev

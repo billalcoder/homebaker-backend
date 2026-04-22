@@ -3,7 +3,7 @@ on: push
 jobs:
     bakersjob:
         runs-on: ubuntu-latest
-        environment: ${{github.ref_name == 'main' && 'prodution' || 'test'}}
+        environment: ${{github.ref_name == 'main' && 'production' || 'test'}}
         steps:
             - uses: actions/checkout@v6
             - uses: appleboy/ssh-action@v1.2.5
@@ -16,5 +16,5 @@ jobs:
                     cd ~/${{secrets.PROJECT_PATH}}
                     git pull origin ${{github.ref_name}}
                     npm install --production
-                    pm2 restart ${{vars.PM2_NAME}} || pm2 start app.js --name "${{vars.PM2_NAME}}"
+                    pm2 restart ${{vars.PM2_NAME}} --update-env || pm2 start app.js --name "${{vars.PM2_NAME}}"
 

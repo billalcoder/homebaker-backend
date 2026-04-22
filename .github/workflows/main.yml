@@ -1,5 +1,7 @@
 name: baker
-on: push
+on:
+  push:
+    branches: [main, develop]
 jobs:
     bakersjob:
         runs-on: ubuntu-latest

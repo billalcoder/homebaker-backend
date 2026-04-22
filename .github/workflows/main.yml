@@ -14,6 +14,6 @@ jobs:
                 script: |
                     cd ~/homebaker-backend
                     git pull origin main
-                    npm install
+                    npm install --production
                     pm2 restart bakerlane || pm2 start app.js --name "bakerlane"
 

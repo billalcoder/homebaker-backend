@@ -130,7 +130,7 @@ app.use(errorHandler)
 if (process.env.NODE_ENV !== "test") {
   app.listen(process.env.PORT , (err) => {
     if (err) console.log(err);
-    console.log("server is running 4000");
+    console.log("server is running " + process.env.PORT);
   })
 }
 

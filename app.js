@@ -45,7 +45,7 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again after 15 minutes',
 });
 app.get("/", (req, res) => {
-  res.status(200).send("Backend is alive!");
+  res.status(200).send("my Backend is alive!");
 });
 
 app.post("/log/frontend", async (req, res) => {
